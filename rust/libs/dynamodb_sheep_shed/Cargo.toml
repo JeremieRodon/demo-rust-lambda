@@ -1,0 +1,20 @@
+[package]
+name = "dynamodb_sheep_shed"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sheep_shed = { path = "../../libs/sheep_shed" }
+aws-sdk-dynamodb = { workspace = true }
+tokio = { workspace = true }
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+1"] }
+log = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+rand = { workspace = true }
+sheep_shed = { path = "../../libs/sheep_shed", features = ["sheepshed_tests"] }

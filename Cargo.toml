@@ -1,0 +1,23 @@
+[workspace]
+members = ["rust/lambdas/*", "rust/libs/*"]
+resolver = "2"
+
+[workspace.package]
+rust-version = "1.76.0"
+edition = "2021"
+authors = ["Jérémie RODON <jeremie.rodon@gmail.com>"]
+license = "MIT"
+
+[workspace.dependencies]
+lambda_runtime = "0.10"
+lambda_http = "0.10"
+aws-config = { version = "1.1", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = { version = "1.16" }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["macros"] }
+serde_json = "1.0"
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+1"] }
+thiserror = "1.0"
+rand = "0.8"
+log = "0.4"
+env_logger = "0.11"

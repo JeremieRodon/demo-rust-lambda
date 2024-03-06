@@ -1,0 +1,18 @@
+Select all 8 Lambda logGroups, ensure that the period of time you are looking up covers your tests,
+then use this query to display the stats for each lambda:
+-------------------------------------------------------------
+
+filter @type = "REPORT"
+| stats avg(@duration) as avgDuration,
+  min(@duration) as minDuration,
+  max(@duration) as maxDuration,
+  stddev(@duration) as StdDevDuration,
+  avg(@billedDuration) as avgBilled,
+  min(@billedDuration) as minBilled,
+  max(@billedDuration) as maxBilled,
+  stddev(@billedDuration) as StdDevBilled,
+  avg(@maxMemoryUsed / 1024 / 1024) as avgMemoryUsedMB,
+  min(@maxMemoryUsed / 1024 / 1024) as minMemoryUsedMB,
+  max(@maxMemoryUsed / 1024 / 1024) as maxMemoryUsedMB,
+  stddev(@maxMemoryUsed / 1024 / 1024) as StdDevMemoryUsedMB
+  by @log

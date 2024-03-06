@@ -1,0 +1,108 @@
+version: 0.2
+
+env:
+  variables:
+    RUST_VERSION: "1.76.0"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo Entered the install phase on `date`
+      - |
+        echo Installing Rust $RUST_VERSION
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none --profile minimal
+        export PATH="/root/.cargo/bin:$PATH"
+        rustup toolchain install $RUST_VERSION
+        rustup default $RUST_VERSION
+        pip3 install cargo-lambda
+    finally:
+      - echo Exiting the install phase on `date`
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - echo Entered the pre_build phase on `date`
+    finally:
+      - |
+        echo Changing all file times to 2010-01-01 00:00:00 \(arbitrary\) to avoid inducing changes in ZIP packages
+        find . -not -path '*/.git/*' -exec touch -a -m -t"201001010000.00" {} \;
+      - echo Exiting the pre_build phase on `date`
+  build:
+    on-failure: ABORT
+    commands:
+      - echo Entered the build phase on `date`
+      - |
+        echo Building the Rust lambdas
+        RUST_LIB_PATH=./rust/libs
+        RUST_LAMBDA_PATH=./rust/lambdas
+        echo Selectively clean-up artifacts if code has changed
+        if ! [ -d rust_target_md5sum ] ; then mkdir rust_target_md5sum ; fi
+        for LIB in $(ls $RUST_LIB_PATH) ; do
+          echo Control MD5 for $RUST_LIB_PATH/$LIB
+          cd $RUST_LIB_PATH/$LIB
+          current_md5=$(find . | sort | zip -@ - | md5sum | cut -f1 -d" ")
+          cd $CODEBUILD_SRC_DIR
+          if ! previous_md5=$(cat rust_target_md5sum/$LIB 2>/dev/null) || [ "$previous_md5" != "$current_md5" ] ; then
+            echo previous_md5=$previous_md5 current_md5=$current_md5 =\> Clean lib $LIB and updating md5sum
+            cargo clean --target aarch64-unknown-linux-gnu --release --package $LIB
+            echo $current_md5 > rust_target_md5sum/$LIB
+          fi
+        done
+        for LAMBDA in $(ls $RUST_LAMBDA_PATH) ; do
+          echo Control MD5 for $RUST_LAMBDA_PATH/$LAMBDA
+          cd $RUST_LAMBDA_PATH/$LAMBDA
+          current_md5=$(find . | sort | zip -@ - | md5sum | cut -f1 -d" ")
+          cd $CODEBUILD_SRC_DIR
+          if ! previous_md5=$(cat rust_target_md5sum/$LAMBDA 2>/dev/null) || [ "$previous_md5" != "$current_md5" ] ; then
+            echo previous_md5=$previous_md5 current_md5=$current_md5 => Clean $LAMBDA and updating md5sum
+            cargo clean --target aarch64-unknown-linux-gnu --release --package $LAMBDA
+            echo $current_md5 > rust_target_md5sum/$LAMBDA
+          fi
+        done
+        CMD="cargo lambda build --release --arm64"
+        for LAMBDA in $(ls $RUST_LAMBDA_PATH) ; do
+          echo Will build $LAMBDA
+          CMD="$CMD --package $LAMBDA"
+        done
+        echo $CMD
+        eval $CMD
+        for LAMBDA in $(ls $RUST_LAMBDA_PATH) ; do
+          echo Preping: $LAMBDA
+          # Remove all content
+          rm -rf $RUST_LAMBDA_PATH/$LAMBDA/*
+          # Move the compiled binary into the Lambda folder
+          mv ./target/lambda/$LAMBDA/bootstrap $RUST_LAMBDA_PATH/$LAMBDA/bootstrap
+        done
+    finally:
+      - |
+        echo Changing all file times to 2010-01-01 00:00:00 \(arbitrary\) to avoid inducing changes in ZIP packages
+        find . -not -path '*/.git/*' -exec touch -a -m -t"201001010000.00" {} \;
+      - echo Exiting the build phase on `date`
+  post_build:
+    commands:
+      - echo Entered the post_build phase on `date`
+      - |
+        echo Soft-link lambda folders
+        mkdir lambdas
+        ORIG_LAMBDA_FOLDER=$CODEBUILD_SRC_DIR/rust/lambdas
+        cd lambdas
+        for LAMBDA_FOLDER in $(ls $ORIG_LAMBDA_FOLDER) ; do
+          echo Soft-link ./lambdas/$LAMBDA_FOLDER to $ORIG_LAMBDA_FOLDER/$LAMBDA_FOLDER
+          ln -s $ORIG_LAMBDA_FOLDER/$LAMBDA_FOLDER $LAMBDA_FOLDER
+        done
+        cd $CODEBUILD_SRC_DIR
+      - |
+        echo Packaging the demo-template file references...
+        mv demo-template.yml demo-template.yml.bak
+        aws cloudformation package --template-file demo-template.yml.bak --s3-bucket $ARTIFACT_BUCKET --s3-prefix templates --output-template-file demo-template.yml
+    finally:
+      - echo Exiting the post_build phase on `date`
+artifacts:
+  base-directory: .
+  files:
+    - demo-template.yml
+cache:
+  paths:
+    - target/**/* # Rust workspace target directory
+    - rust_target_md5sum/**/* # Where we store md5sum for code

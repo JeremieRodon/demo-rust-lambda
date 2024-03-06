@@ -1,0 +1,9 @@
+[package]
+name = "get-cat-ackermann"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+lambda_apigw_commons = { path = "../../libs/lambda_apigw_commons" }

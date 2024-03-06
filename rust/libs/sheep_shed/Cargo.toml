@@ -1,0 +1,15 @@
+[package]
+name = "sheep_shed"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+sheepshed_tests = []

@@ -1,0 +1,414 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CodePipeline pipeline for a the demo
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: Name of the project to insert in all resources names
+    Default: "SheepShedDemo"
+  CodeStarConnectionArn:
+    Type: String
+    Description: The ARN of the CodeStart connection to GitHub, follow the Get Started on https://github.com/JeremieRodon/demo-rust-lambda.git
+  ForkedRepoId:
+    Type: String
+    Description: The ID of the repository in YOUR GitHub account, probably <YourUserName>/demo-rust-lambda
+
+Resources:
+  #############
+  # Artifacts #
+  #############
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitToIT
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 0
+                StorageClass: INTELLIGENT_TIERING
+  ArtifactBucketEmptier:
+     Type: Custom::BucketEmptier
+     DependsOn:
+      - ArtifactBucket
+      - ArtifactBucketEmptierLambda
+      - ArtifactBucketEmptierLambdaLogGroup
+      - ArtifactBucketEmptierLambdaRole
+     Properties:
+       ServiceToken: !GetAtt ArtifactBucketEmptierLambda.Arn
+       BucketName: !Ref ArtifactBucket
+  ArtifactBucketEmptierLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-pipeline-bucket-emptier
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 15
+      Role: !GetAtt ArtifactBucketEmptierLambdaRole.Arn
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          def lambda_handler(event, context):
+            try:
+              bucket_name = event['ResourceProperties']['BucketName']
+              physical_id = f"EMPTIER_{bucket_name}"
+              if event['RequestType'] == 'Delete':
+                bucket = boto3.resource('s3').Bucket(bucket_name)
+                bucket.object_versions.delete()
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physical_id)
+            except Exception as e:
+              cfnresponse.send(event, context, cfnresponse.FAILED, {'Data': str(e)}, physical_id)
+  ArtifactBucketEmptierLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ArtifactBucketEmptierLambda}
+      RetentionInDays: 7
+  ArtifactBucketEmptierLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub role-lambda-${ProjectName}-pipeline-bucket-emptier
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: working-rights
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}
+                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}/*
+  ArtifactBucketEmptierLambdaRoleBasicPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref ArtifactBucketEmptierLambdaRole
+      PolicyName: basic-lambda
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !GetAtt ArtifactBucketEmptierLambdaLogGroup.Arn
+  #########
+  # Build #
+  #########
+  RustBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: ArtifactBucketEmptier
+    Properties:
+      Name: !Sub ${ProjectName}-rust-builder
+      Description: !Sub Building the Rust API for project ${ProjectName}
+      ServiceRole: !GetAtt BuildProjectRole.Arn
+      Environment:
+        Type: ARM_CONTAINER
+        ComputeType: BUILD_GENERAL1_LARGE
+        Image: aws/codebuild/amazonlinux2-aarch64-standard:3.0
+        EnvironmentVariables:
+          - Name: ARTIFACT_BUCKET
+            Value: !Ref ArtifactBucket
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: ./ci-config/buildspec-rust.yml
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: S3
+        Location: !Sub ${ArtifactBucket}/codebuildcache/${ProjectName}-rust-builder
+      TimeoutInMinutes: 60
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-rust-builder
+  RustBuildProjectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/codebuild/${RustBuildProject}
+      RetentionInDays: 14
+
+  PythonBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: ArtifactBucketEmptier
+    Properties:
+      Name: !Sub ${ProjectName}-python-builder
+      Description: !Sub Building the Python API for project ${ProjectName}
+      ServiceRole: !GetAtt BuildProjectRole.Arn
+      Environment:
+        Type: ARM_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-aarch64-standard:3.0
+        EnvironmentVariables:
+          - Name: ARTIFACT_BUCKET
+            Value: !Ref ArtifactBucket
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: ./ci-config/buildspec-python.yml
+      Artifacts:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 60
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-python-builder
+  PythonBuildProjectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/codebuild/${PythonBuildProject}
+      RetentionInDays: 14
+
+  BuildProjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub role-codebuild-${ProjectName}-builder
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+  BuildProjectRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref BuildProjectRole
+      PolicyName: !Sub policy-codebuild-${ProjectName}
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}
+              - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}/*
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !GetAtt RustBuildProjectLogGroup.Arn
+              - !GetAtt PythonBuildProjectLogGroup.Arn
+
+  ############
+  # Pipeline #
+  ############
+  PipeLineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub role-codepipeline-${ProjectName}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: policy-codepipeline
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: codestar-connections:UseConnection
+                Resource: !Ref CodeStarConnectionArn
+              - Effect: Allow
+                Action:
+                  - codepipeline:*
+                  - iam:ListRoles
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - cloudformation:Describe*
+                  - cloudFormation:List*
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:ValidateTemplate
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}
+                  - !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}/*
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: "*"
+                Condition:
+                  StringEqualsIfExists:
+                    "iam:PassedToService":
+                      - cloudformation.amazonaws.com
+      Path: /
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    DependsOn: ArtifactBucketEmptier
+    Properties:
+      RoleArn: !GetAtt PipeLineRole.Arn
+      Name: !Sub cp-${ProjectName}-release
+      PipelineType: V2
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Checkout
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeStarSourceConnection
+              Configuration:
+                ConnectionArn: !Ref CodeStarConnectionArn
+                FullRepositoryId: !Ref ForkedRepoId
+                BranchName: master
+                DetectChanges: true
+              OutputArtifacts:
+                - Name: Sources
+              RunOrder: 1
+        - Name: BuildInfra
+          Actions:
+            - Name: BuildInfraRust
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref RustBuildProject
+              RunOrder: 1
+              InputArtifacts:
+                - Name: Sources
+              OutputArtifacts:
+                - Name: RustTemplate
+            - Name: BuildInfraPython
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref PythonBuildProject
+              RunOrder: 1
+              InputArtifacts:
+                - Name: Sources
+              OutputArtifacts:
+                - Name: PythonTemplate
+        - Name: DeployInfra
+          Actions:
+            - Name: DeployInfraRust
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangeSetName: Deploy
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub ${ProjectName}-rust-api
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                TemplatePath: RustTemplate::demo-template.yml
+                ParameterOverrides: !Sub '{"ProjectName": "${ProjectName}", "Lang": "rust"}'
+                RoleArn: !GetAtt CFDeployerRole.Arn
+              InputArtifacts:
+                - Name: RustTemplate
+              RunOrder: 1
+            - Name: DeployInfraPython
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangeSetName: Deploy
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub ${ProjectName}-python-api
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                TemplatePath: PythonTemplate::demo-template.yml
+                ParameterOverrides: !Sub '{"ProjectName": "${ProjectName}", "Lang": "python"}'
+                RoleArn: !GetAtt CFDeployerRole.Arn
+              InputArtifacts:
+                - Name: PythonTemplate
+              RunOrder: 1
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+
+##################################
+# CloudFormation deployment role #
+##################################
+  CFDeployerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub role-${ProjectName}-CF-Deployer
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub policy-${ProjectName}-CF-Deployer
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: ReadArtifacts
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${ArtifactBucket}/*
+              - Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:RollbackStack
+                  - cloudformation:DeleteStack
+                Resource:
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}-python-api
+                  - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ProjectName}-rust-api
+              - Effect: Allow
+                Action:
+                  - lambda:*
+                  - iam:*Role*
+                  - logs:*
+                  - dynamodb:*
+                  - apigateway:*
+                Resource: "*"
+      Path: /

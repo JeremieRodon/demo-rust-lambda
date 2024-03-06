@@ -1,0 +1,12 @@
+[package]
+name = "delete-wolf-ocd"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+lambda_apigw_commons = { path = "../../libs/lambda_apigw_commons" }
+dynamodb_sheep_shed = { path = "../../libs/dynamodb_sheep_shed" }
+sheep_shed = { path = "../../libs/sheep_shed" }
+aws-sdk-dynamodb = { workspace = true }

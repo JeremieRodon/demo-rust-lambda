@@ -1,0 +1,72 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo Entered the install phase on `date`
+    finally:
+      - echo Exiting the install phase on `date`
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - echo Entered the pre_build phase on `date`
+    finally:
+      - |
+        echo Changing all file times to 2010-01-01 00:00:00 \(arbitrary\) to avoid inducing changes in ZIP packages
+        find . -not -path '*/.git/*' -exec touch -a -m -t"201001010000.00" {} \;
+      - echo Exiting the pre_build phase on `date`
+  build:
+    on-failure: ABORT
+    commands:
+      - echo Entered the build phase on `date`
+      - |
+        echo Installing dependencies for the Python layers
+        PYTHON_LAYERS_PATH=./python/layers
+        for LAYER in $(ls $PYTHON_LAYERS_PATH) ; do
+          echo Creating a supported path for Python layer: $LAYER
+          mv $PYTHON_LAYERS_PATH/$LAYER $PYTHON_LAYERS_PATH/$LAYER.bak
+          mkdir -p $PYTHON_LAYERS_PATH/$LAYER/python
+          mv $PYTHON_LAYERS_PATH/$LAYER.bak/* $PYTHON_LAYERS_PATH/$LAYER/python
+          rmdir $PYTHON_LAYERS_PATH/$LAYER.bak
+          echo Installing dependencies for Python layer: $LAYER
+          pip install -r $PYTHON_LAYERS_PATH/$LAYER/python/requirements.txt -t $PYTHON_LAYERS_PATH/$LAYER/python
+          rm $PYTHON_LAYERS_PATH/$LAYER/python/requirements.txt
+        done
+      - |
+        echo Installing dependencies for the Python lambdas
+        PYTHON_LAMBDA_PATH=./python/lambdas
+        for LAMBDA in $(ls $PYTHON_LAMBDA_PATH) ; do
+          echo Installing dependencies for Python lambda: $LAMBDA
+          pip install -r $PYTHON_LAMBDA_PATH/$LAMBDA/requirements.txt -t $PYTHON_LAMBDA_PATH/$LAMBDA
+          rm $PYTHON_LAMBDA_PATH/$LAMBDA/requirements.txt
+        done
+    finally:
+      - |
+        echo Changing all file times to 2010-01-01 00:00:00 \(arbitrary\) to avoid inducing changes in ZIP packages
+        find . -not -path '*/.git/*' -exec touch -a -m -t"201001010000.00" {} \;
+      - echo Exiting the build phase on `date`
+  post_build:
+    commands:
+      - echo Entered the post_build phase on `date`
+      - |
+        echo Soft-link lambda folders
+        mkdir lambdas
+        ORIG_LAMBDA_FOLDER=$CODEBUILD_SRC_DIR/python/lambdas
+        cd lambdas
+        for LAMBDA_FOLDER in $(ls $ORIG_LAMBDA_FOLDER) ; do
+          echo Soft-link ./lambdas/$LAMBDA_FOLDER to $ORIG_LAMBDA_FOLDER/$LAMBDA_FOLDER
+          ln -s $ORIG_LAMBDA_FOLDER/$LAMBDA_FOLDER $LAMBDA_FOLDER
+        done
+        cd $CODEBUILD_SRC_DIR
+      - |
+        echo Packaging the demo-template file references...
+        mv demo-template.yml demo-template.yml.bak
+        aws cloudformation package --template-file demo-template.yml.bak --s3-bucket $ARTIFACT_BUCKET --s3-prefix templates --output-template-file demo-template.yml
+    finally:
+      - echo Exiting the post_build phase on `date`
+artifacts:
+  base-directory: .
+  files:
+    - demo-template.yml

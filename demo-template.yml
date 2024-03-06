@@ -1,0 +1,605 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: The demo SheepShed API in the chosen language
+
+Parameters:
+  ProjectName:
+    Type: String
+  Lang:
+    Type: String
+    Description: The language of deployment
+    AllowedValues:
+      - 'rust'
+      - 'python'
+
+Conditions:
+  cIsRust: !Equals [ !Ref Lang, "rust" ]
+  cIsPython: !Equals [ !Ref Lang, "python" ]
+
+Globals:
+  Function:
+    Runtime: !If
+      - cIsRust
+      - provided.al2023
+      - python3.12
+    MemorySize: 128
+    Timeout: 30
+    Handler: !If
+      - cIsRust
+      - rust.handler
+      - index.lambda_handler
+    Architectures:
+      - arm64
+    Layers: !If
+      - cIsPython
+      - [ !Ref CommonsLambdaLayer ]
+      - !Ref AWS::NoValue
+    Environment:
+      Variables:
+        BACKEND_TABLE_NAME: !Ref BackendTable
+        ALLOW_ORIGIN: '*'
+        RUST_LOG: debug,hyper=info,tracing=info,aws_config=info,aws_smithy_runtime=info,aws_smithy_runtime_api=info,rustls=info
+
+Resources:
+#################
+# Backend table #
+#################
+  BackendTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${ProjectName}-${Lang}-backend
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tatoo
+          AttributeType: N
+      KeySchema:
+        - AttributeName: tatoo
+          KeyType: HASH
+
+
+##############################
+# Shared Python Lambda Layer #
+##############################
+  CommonsLambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Condition: cIsPython
+    Properties:
+      CompatibleRuntimes:
+        - python3.12
+      Content: python/layers/commons
+      Description: Lambda layer containing various utils for interacting with ApiGateway and DynamoDB
+      LayerName: !Sub ${ProjectName}-${Lang}-commons
+
+###########
+# Lambdas #
+###########
+####################
+# GET /cat?m=2&n=3 #
+####################
+  GetCatAckermannFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Lang}-get-cat-ackermann
+      CodeUri: lambdas/get-cat-ackermann
+      Events:
+        SheepShedAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SheepShedAPI
+            Path: /cat
+            Method: get
+  GetCatAckermannFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetCatAckermannFunction}
+      RetentionInDays: 90
+
+############
+# GET /dog #
+############
+  GetDogCountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Lang}-get-dog-count
+      CodeUri: lambdas/get-dog-count
+      Events:
+        SheepShedAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SheepShedAPI
+            Path: /dog
+            Method: get
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Sid: DescribeShed
+              Effect: Allow
+              Action: dynamodb:DescribeTable
+              Resource: !GetAtt BackendTable.Arn
+            - Sid: CountSheeps
+              Effect: Allow
+              Action: dynamodb:Scan
+              Resource: !GetAtt BackendTable.Arn
+              Condition:
+                StringEquals:
+                  'dynamodb:Select': COUNT
+  GetDogCountFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetDogCountFunction}
+      RetentionInDays: 90
+
+################
+# DELETE /wolf #
+################
+  DeleteWolfOcdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Lang}-delete-wolf-ocd
+      CodeUri: lambdas/delete-wolf-ocd
+      Events:
+        SheepShedAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SheepShedAPI
+            Path: /wolf
+            Method: delete
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Sid: DescribeShed
+              Effect: Allow
+              Action: dynamodb:DescribeTable
+              Resource: !GetAtt BackendTable.Arn
+            - Sid: ListSheeps
+              Effect: Allow
+              Action: dynamodb:Scan
+              Resource: !GetAtt BackendTable.Arn
+              Condition:
+                StringEquals:
+                  'dynamodb:Select': ALL_ATTRIBUTES
+            - Sid: DevourSheep
+              Effect: Allow
+              Action: dynamodb:DeleteItem
+              Resource: !GetAtt BackendTable.Arn
+              Condition:
+                StringEquals:
+                  'dynamodb:ReturnValues': ALL_OLD
+  DeleteWolfOcdFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${DeleteWolfOcdFunction}
+      RetentionInDays: 90
+
+#######################
+# POST /sheep/{Tatoo} #
+#######################
+  PostSheepRandomFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Lang}-post-sheep-random
+      CodeUri: lambdas/post-sheep-random
+      Events:
+        SheepShedAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SheepShedAPI
+            Path: /sheep/{Tatoo}
+            Method: post
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Sid: AddSheep
+              Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt BackendTable.Arn
+              Condition:
+                ForAllValues:StringEquals:
+                  'dynamodb:Attributes':
+                    - tatoo
+                    - weight
+                StringEquals:
+                  'dynamodb:ReturnValues': NONE
+  PostSheepRandomFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PostSheepRandomFunction}
+      RetentionInDays: 90
+
+#######
+# API #
+#######
+  SheepShedAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub api-${Lang}-${ProjectName}
+      Description: !Sub Backend REST API for the SheepShed with ${Lang} lambdas
+      EndpointConfiguration:
+        Type: REGIONAL
+      MergeDefinitions: false
+      OpenApiVersion: 3.0.1
+      FailOnWarnings: true
+      DefinitionBody:
+        openapi: '3.0.1'
+        info:
+          title: Sheep shed API
+          description: A sheep shed
+          version: '1'
+        paths:
+          /cat:
+            options:
+              tags:
+                - options
+              description: Preflight CORS checks for the PATH
+              responses:
+                '200':
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                    Access-Control-Allow-Methods:
+                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                    Access-Control-Allow-Headers:
+                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{"statusCode" : 200}'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                      method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+                    responseTemplates:
+                      application/json: '{}'
+            get:
+              description: >-
+                Ask the cat to compute the Ackermann algorithm for some value of m and n
+              parameters:
+                - $ref: '#/components/parameters/AckermannNumberN'
+                - $ref: '#/components/parameters/AckermannNumberM'
+              responses:
+                '200':
+                  $ref: '#/components/responses/AckermannResult'
+                '400':
+                  $ref: '#/components/responses/GenericError'
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetCatAckermannFunction.Arn}/invocations
+                passthroughBehavior: when_no_match
+              x-amazon-apigateway-request-validator: basic
+          /dog:
+            options:
+              tags:
+                - options
+              description: Preflight CORS checks for the PATH
+              responses:
+                '200':
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                    Access-Control-Allow-Methods:
+                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                    Access-Control-Allow-Headers:
+                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{"statusCode" : 200}'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                      method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+                    responseTemplates:
+                      application/json: '{}'
+            get:
+              description: Ask the dog to count the sheeps in the shed
+              responses:
+                '200':
+                  $ref: '#/components/responses/SheepCount'
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDogCountFunction.Arn}/invocations
+                passthroughBehavior: when_no_match
+              x-amazon-apigateway-request-validator: basic
+          /sheep/{Tatoo}:
+            options:
+              tags:
+                - options
+              description: Preflight CORS checks for the PATH
+              parameters:
+                - $ref: '#/components/parameters/Tatoo'
+              responses:
+                '200':
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                    Access-Control-Allow-Methods:
+                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                    Access-Control-Allow-Headers:
+                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{"statusCode" : 200}'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                      method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+                    responseTemplates:
+                      application/json: '{}'
+            post:
+              description: Generate a new sheep for the shed with the given Tatoo and a random Weight
+              parameters:
+                - $ref: '#/components/parameters/Tatoo'
+              responses:
+                '200':
+                  $ref: '#/components/responses/Sheep'
+                '400':
+                  $ref: '#/components/responses/GenericError'
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PostSheepRandomFunction.Arn}/invocations
+                passthroughBehavior: when_no_match
+              x-amazon-apigateway-request-validator: basic
+          /wolf/:
+            options:
+              tags:
+                - options
+              description: Preflight CORS checks for the PATH
+              responses:
+                '200':
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                    Access-Control-Allow-Methods:
+                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                    Access-Control-Allow-Headers:
+                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{"statusCode" : 200}'
+                responses:
+                  default:
+                    statusCode: '200'
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                      method.response.header.Access-Control-Allow-Methods: "'OPTIONS,DELETE'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
+                    responseTemplates:
+                      application/json: '{}'
+            delete:
+              description: >-
+                The hungry wolf will eat a sheep from the shed, but only if it finds one
+                with a weight that satisfy its Obsessive-Compulsive Disorder (OCD)
+              responses:
+                '204':
+                  $ref: '#/components/responses/Empty'
+                '404':
+                  $ref: '#/components/responses/GenericError'
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteWolfOcdFunction.Arn}/invocations
+                passthroughBehavior: when_no_match
+              x-amazon-apigateway-request-validator: basic
+        components:
+        ################################################################################
+        #                                   Headers                                    #
+        ################################################################################
+          headers:
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+        ################################################################################
+        #                                   Schemas                                    #
+        ################################################################################
+          schemas:
+            ackermannresult:
+              type: object
+              description: Ackermann algorithm result
+              required:
+                - result
+              properties:
+                result:
+                  type: integer
+                  format: int64
+                  minimum: 0
+            sheep:
+              type: object
+              description: A sheep
+              required:
+                - tatoo
+                - weight
+              properties:
+                tatoo:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                weight:
+                  type: integer
+                  format: int64
+                  minimum: 80000000000
+                  maximum: 160000000000
+                  description: The weight of the sheep, expressed in micrograms
+            sheepcount:
+              type: object
+              description: The sheep count in the shed
+              required:
+                - count
+              properties:
+                count:
+                  type: integer
+                  format: int64
+                  minimum: 0
+        ################################################################################
+        #                                   Parameters                                 #
+        ################################################################################
+          parameters:
+            Tatoo:
+              name: Tatoo
+              description: The tatoo of a sheep
+              in: path
+              required: true
+              schema:
+                type: string
+                pattern: ^\d{1,20}$
+            AckermannNumberN:
+              name: 'n'
+              description: >-
+                The number 'n' for the Ackermann algorithm. We use the 2-ary function as defined on
+                Wikipedia: https://en.wikipedia.org/wiki/Ackermann_function#TRS,_based_on_2-ary_function
+              in: query
+              required: true
+              schema:
+                type: integer
+                format: int32
+                minimum: 0
+                maximum: 50000
+            AckermannNumberM:
+              name: 'm'
+              description: >-
+                The number 'm' for the Ackermann algorithm. We use the 2-ary function as defined on
+                Wikipedia: https://en.wikipedia.org/wiki/Ackermann_function#TRS,_based_on_2-ary_function
+              in: query
+              required: true
+              schema:
+                type: integer
+                format: int32
+                minimum: 0
+                maximum: 4
+        ################################################################################
+        #                                 Request bodies                               #
+        ################################################################################
+          requestBodies: {}
+        ################################################################################
+        #                             Responses objects                                #
+        ################################################################################
+          responses:
+            AckermannResult:
+              description: Ackermann algorithm result
+              headers:
+                Access-Control-Allow-Origin:
+                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ackermannresult'
+            Sheep:
+              description: A sheep
+              headers:
+                Access-Control-Allow-Origin:
+                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/sheep'
+            SheepCount:
+              description: The number of sheeps currently in the shed
+              headers:
+                Access-Control-Allow-Origin:
+                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/sheepcount'
+            GenericError:
+              description: The generic error
+              headers:
+                Access-Control-Allow-Origin:
+                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    description: The standard error object for this API
+                    required:
+                      - message
+                    properties:
+                      message:
+                        type: string
+                        description: The message giving details about the error
+            Empty:
+              description: An empty response
+              headers:
+                Access-Control-Allow-Origin:
+                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+        ################################################################################
+        #                                 Security   Definitions                       #
+        ################################################################################
+          securitySchemes: {}
+        ################################################################################
+        #                                 Security                                     #
+        ################################################################################
+        security: []
+        ################################################################################
+        #                                   Tags                                       #
+        ################################################################################
+        tags:
+          - name: options
+            description: All the options API methods
+        ################################################################################
+        #                                    Validators                                #
+        ################################################################################
+        x-amazon-apigateway-request-validators:
+          basic:
+            validateRequestBody: true
+            validateRequestParameters: true
+        ################################################################################
+        #                          Custom API Gateway responses                        #
+        ################################################################################
+        x-amazon-apigateway-gateway-responses:
+          DEFAULT_4XX:
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: '{"message":$context.error.messageString}'
+          DEFAULT_5XX:
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: '{"message":$context.error.messageString}'
+        ################################################################################
+        #                                   Documentation                              #
+        ################################################################################
+        x-amazon-apigateway-documentation:
+          version: v1.0
+          createdDate: '2024-03-05T08:28:00Z'
+          documentationParts:
+            - location:
+                type: API
+              properties:
+                info:
+                  description: Sheep shed API
+      StageName: v1
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingBurstLimit: 100000
+          ThrottlingRateLimit: 10000
+
+Outputs:
+  ApiUrl:
+    Description: The URL of the API
+    Value: !Sub https://${SheepShedAPI}.execute-api.${AWS::Region}.amazonaws.com/v1/
