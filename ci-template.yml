@@ -277,7 +277,10 @@ Resources:
       Path: /
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
-    DependsOn: ArtifactBucketEmptier
+    DependsOn:
+      - ArtifactBucketEmptier
+      - PythonBuildProjectLogGroup
+      - RustBuildProjectLogGroup
     Properties:
       RoleArn: !GetAtt PipeLineRole.Arn
       Name: !Sub cp-${ProjectName}-release
