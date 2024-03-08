@@ -18,26 +18,28 @@ phases:
         rustup default $RUST_VERSION
         pip3 install cargo-lambda
     finally:
+      - |
+        echo Changing all file times to 2010-01-01 00:00:00 \(arbitrary\) to avoid inducing changes in ZIP packages
+        find . -not -path '*/.git/*' -exec touch -a -m -t"201001010000.00" {} \;
       - echo Exiting the install phase on `date`
   pre_build:
     on-failure: ABORT
     commands:
       - echo Entered the pre_build phase on `date`
-    finally:
       - |
-        echo Changing all file times to 2010-01-01 00:00:00 \(arbitrary\) to avoid inducing changes in ZIP packages
-        find . -not -path '*/.git/*' -exec touch -a -m -t"201001010000.00" {} \;
-      - echo Exiting the pre_build phase on `date`
-  build:
-    on-failure: ABORT
-    commands:
-      - echo Entered the build phase on `date`
-      - |
-        echo Building the Rust lambdas
         RUST_LIB_PATH=./rust/libs
         RUST_LAMBDA_PATH=./rust/lambdas
-        echo Selectively clean-up artifacts if code has changed
+      - |
+        if ! previous_build_rust_version=$(cat previous_build_rust_version 2>/dev/null) || [ "$previous_build_rust_version" != "$RUST_VERSION" ]; then
+          echo "Rust version changed $previous_build_rust_version -> $RUST_VERSION, cleaning everything"
+          cargo clean
+          echo $RUST_VERSION > previous_build_rust_version
+        fi
+      - |
+        echo Cleaning targets cache if necessary
+        declare -A PACKAGES_TO_CLEAN
         if ! [ -d rust_target_md5sum ] ; then mkdir rust_target_md5sum ; fi
+        echo Selectively clean-up LIB artifacts if code has changed
         for LIB in $(ls $RUST_LIB_PATH) ; do
           echo Control MD5 for $RUST_LIB_PATH/$LIB
           cd $RUST_LIB_PATH/$LIB
@@ -45,10 +47,11 @@ phases:
           cd $CODEBUILD_SRC_DIR
           if ! previous_md5=$(cat rust_target_md5sum/$LIB 2>/dev/null) || [ "$previous_md5" != "$current_md5" ] ; then
             echo previous_md5=$previous_md5 current_md5=$current_md5 =\> Clean lib $LIB and updating md5sum
-            cargo clean --target aarch64-unknown-linux-gnu --release --package $LIB
+            PACKAGES_TO_CLEAN+=([$LIB]=1)
             echo $current_md5 > rust_target_md5sum/$LIB
           fi
         done
+        echo Selectively clean-up LAMBDA artifacts if code has changed
         for LAMBDA in $(ls $RUST_LAMBDA_PATH) ; do
           echo Control MD5 for $RUST_LAMBDA_PATH/$LAMBDA
           cd $RUST_LAMBDA_PATH/$LAMBDA
@@ -56,17 +59,59 @@ phases:
           cd $CODEBUILD_SRC_DIR
           if ! previous_md5=$(cat rust_target_md5sum/$LAMBDA 2>/dev/null) || [ "$previous_md5" != "$current_md5" ] ; then
             echo previous_md5=$previous_md5 current_md5=$current_md5 => Clean $LAMBDA and updating md5sum
-            cargo clean --target aarch64-unknown-linux-gnu --release --package $LAMBDA
+            PACKAGES_TO_CLEAN+=([$LAMBDA]=1)
             echo $current_md5 > rust_target_md5sum/$LAMBDA
           fi
         done
-        CMD="cargo lambda build --release --arm64"
+        if [ -f Cargo.lock.old ] ; then
+          mv Cargo.lock Cargo.lock.new
+          cp Cargo.lock.old Cargo.lock
+        fi
+        if [ -f Cargo.lock.old ] ; then
+          declare -A CURRENT_PACKAGES
+          echo Building current packages set...
+          for p in $(perl -0pe 's/^.*?(\[\[package\]\]\nname = "(\S+)"\nversion = "(\S+)".*?\n)+$/\2@\3\n/gms' < Cargo.lock.new) ; do
+            CURRENT_PACKAGES+=([$p]=1)
+          done
+          echo Finding all packages that are no longer needed...
+          for p in $(perl -0pe 's/^.*?(\[\[package\]\]\nname = "(\S+)"\nversion = "(\S+)".*?\n)+$/\2@\3\n/gms' < Cargo.lock.old) ; do
+            if ! [[ ${CURRENT_PACKAGES[$p]} -eq 1 ]]; then
+              for ptc in $(cargo tree --prefix none -e no-dev -i --target aarch64-unknown-linux-gnu --package $p | sed -r 's/^(\S+).*$/\1/'); do
+                echo "Removing $ptc"
+                PACKAGES_TO_CLEAN+=([$ptc]=1)
+              done
+            fi
+          done
+        fi
+        echo Cleaning ${#PACKAGES_TO_CLEAN[@]} packages...
+        for package in ${!PACKAGES_TO_CLEAN[@]}; do
+          echo Cleaning $package
+          cargo clean --locked --target aarch64-unknown-linux-gnu --release --package $package
+        done
+        if [ -f Cargo.lock.new ] ; then
+          rm -f Cargo.lock
+          mv Cargo.lock.new Cargo.lock
+        fi
+      - |
+        echo Updating Cargo.lock.old
+        cp Cargo.lock Cargo.lock.old
+    finally:
+      - echo Exiting the pre_build phase on `date`
+  build:
+    on-failure: ABORT
+    commands:
+      - echo Entered the build phase on `date`
+      - |
+        echo Building release command...
+        CMD="cargo lambda build --locked --release --arm64"
         for LAMBDA in $(ls $RUST_LAMBDA_PATH) ; do
           echo Will build $LAMBDA
           CMD="$CMD --package $LAMBDA"
         done
         echo $CMD
         eval $CMD
+      - |
+        echo Packaging lambdas...
         for LAMBDA in $(ls $RUST_LAMBDA_PATH) ; do
           echo Preping: $LAMBDA
           # Remove all content
@@ -106,3 +151,5 @@ cache:
   paths:
     - target/**/* # Rust workspace target directory
     - rust_target_md5sum/**/* # Where we store md5sum for code
+    - Cargo.lock.old # The last seen Cargo.lock
+    - previous_build_rust_version # The last seen Rust toolchain version
