@@ -92,7 +92,7 @@ The ***Sheep Shed*** is accessible through an **Amazon API Gateway** exposing 4 
 - GET /cat?m=`<m>`&n=`<n>` to ask the cat to compute the Ackermann function for given `m` and `n`
 - DELETE /wolf to trigger a raid on the shed by our OCD wolf.
 
-Each of this path has its own **AWS Lambda** function.
+Each of these paths has its own **AWS Lambda** function.
 
 The backend is an **Amazon DynamoDB** table.
 
@@ -150,7 +150,7 @@ You also need **a GitHub account**, as the deployment method I propose here rely
 #### 1. Fork the repo
 Fork this repository in you own GitHub account. Copy the ID of the new repository (\<UserName>/demo-rust-lambda), you will need it later. Be mindfull of the case.
 
-The simplest technique is simply to copy it from the browser URL:
+The simplest technique is to copy it from the browser URL:
 
 ![Step 0](images/get-started-0.png)
 
@@ -166,11 +166,11 @@ This step is only necessary if you don't already have a CodeStar Connection to y
 
 ![Step 1](images/get-started-1.png)
 
-2. Assuming you where already logged-in on GitHub, it will ask you if you consent to let AWS do stuff in your GitHub. Yes you do.
+2. Assuming you were already logged-in on GitHub, it will ask you if you consent to let AWS do stuff in your GitHub account. Yes you do.
 
 ![Step 2](images/get-started-2.png)
 
-3. You will be brought back to the AWS Console, choose the GitHub Apps that was created for you in the list (don't mind the number on the screenshot), then click Connect.
+3. You will be brought back to the AWS Console. Choose the GitHub Apps that was created for you in the list (don't mind the number on the screenshot, yours will be different), then click Connect.
 
 ![Step 3](images/get-started-3.png)
 
