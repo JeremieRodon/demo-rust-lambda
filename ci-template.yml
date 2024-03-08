@@ -20,8 +20,6 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
-      VersioningConfiguration:
-        Status: Enabled
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerEnforced
@@ -279,8 +277,7 @@ Resources:
     Type: AWS::CodePipeline::Pipeline
     DependsOn:
       - ArtifactBucketEmptier
-      - PythonBuildProjectLogGroup
-      - RustBuildProjectLogGroup
+      - BuildProjectRolePolicy
     Properties:
       RoleArn: !GetAtt PipeLineRole.Arn
       Name: !Sub cp-${ProjectName}-release
