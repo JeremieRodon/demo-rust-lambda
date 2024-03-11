@@ -3,12 +3,12 @@
 usage () {
     echo "Usage: $0 [<OPTIONS>] <API_URL> [<sheep_count>]"
     echo ""
-    echo "Inserts the given amount of sheeps by repeatedly calling POST <API_URL>/sheep/<tatoo>"
-    echo "Tatoos will be all the numbers from 1 to <sheep_count> included, unless the -s option is used"
+    echo "Inserts the given amount of sheeps by repeatedly calling POST <API_URL>/sheep/<tattoo>"
+    echo "Tattoos will be all the numbers from 1 to <sheep_count> included, unless the -s option is used"
     echo "<sheep_count> defaults to 1000"
     echo ""
     echo -e "-p|--parallel <task_count>\tThe number of concurrent task to use. (Default: 100)"
-    echo -e "-s|--start-at <index>\tThe first sheep tatoo to use. (Default: 1)"
+    echo -e "-s|--start-at <index>\tThe first sheep tattoo to use. (Default: 1)"
     echo ""
     echo "OPTIONS:"
     echo -e "-h|--help\t\t\tShow this help"
@@ -69,6 +69,6 @@ timestamp_nano() {
 }
 SEQ_END=$(( $START_AT + $SHEEP_COUNT - 1 ))
 start_ts=$(timestamp_nano)
-seq $START_AT $SEQ_END | xargs -Itatoo -P$PARALLEL_TASKS curl -s --retry 5 --retry-connrefused -XPOST "$API_URL/sheep/tatoo" > /dev/null
+seq $START_AT $SEQ_END | xargs -Itattoo -P$PARALLEL_TASKS curl -s --retry 5 --retry-connrefused -XPOST "$API_URL/sheep/tattoo" > /dev/null
 end_ts=$(timestamp_nano)
 echo Insertion took $(( ( $end_ts - $start_ts ) / 1000000 ))ms

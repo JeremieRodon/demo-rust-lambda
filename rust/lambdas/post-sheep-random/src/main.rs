@@ -1,7 +1,7 @@
 use aws_sdk_dynamodb::Client;
 use dynamodb_sheep_shed::DynamoDBSheepShed;
 use rand::Rng;
-use sheep_shed::{Sheep, SheepShed, Tatoo, Weight};
+use sheep_shed::{Sheep, SheepShed, Tattoo, Weight};
 
 use lambda_apigw_commons::prelude::*;
 
@@ -14,16 +14,16 @@ async fn generate_random_weight() -> Weight {
 
 async fn insert_sheep(req: SimpleRequest<'_>) -> SimpleResult {
     let parameters = req.parameters;
-    let tatoo_parameter = *parameters
-        .get("Tatoo")
+    let tattoo_parameter = *parameters
+        .get("Tattoo")
         .expect("API Gateway ensures it's here");
-    let tatoo = Tatoo(tatoo_parameter.parse().map_err(|e| {
+    let tattoo = Tattoo(tattoo_parameter.parse().map_err(|e| {
         SimpleError::InvalidInput(format!(
-            "Tatoo parameter {tatoo_parameter} could not be parsed: {e}"
+            "Tattoo parameter {tattoo_parameter} could not be parsed: {e}"
         ))
     })?);
 
-    log::info!("tatoo={tatoo:?}");
+    log::info!("tattoo={tattoo:?}");
 
     let handle = tokio::runtime::Handle::current();
 
@@ -31,7 +31,7 @@ async fn insert_sheep(req: SimpleRequest<'_>) -> SimpleResult {
     // Random number generation in a separate task
     let new_sheep = handle.spawn(async {
         Sheep {
-            tatoo,
+            tattoo,
             weight: generate_random_weight().await,
         }
     });

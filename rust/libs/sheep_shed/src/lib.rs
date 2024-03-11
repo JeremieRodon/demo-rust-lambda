@@ -1,7 +1,7 @@
 pub mod errors;
 mod sheep;
 
-pub use sheep::{Sheep, Tatoo, Weight};
+pub use sheep::{Sheep, Tattoo, Weight, WeightUnit};
 use std::collections::HashMap;
 
 /// The trait for [SheepShed] that can hold [Sheep]s and provides basic methods
@@ -11,7 +11,7 @@ pub trait SheepShed {
     /// # Errors
     /// It is not allowed to add a duplicated [Sheep], will return an
     /// [errors::Error::SheepDuplicationError] if the user tries to add
-    /// a [Sheep] with an already known [Tatoo]
+    /// a [Sheep] with an already known [Tattoo]
     fn add_sheep(&mut self, sheep: Sheep) -> Result<(), errors::Error>;
     /// Return the number of [Sheep] in the [SheepShed]
     fn sheep_count(&self) -> Result<usize, errors::Error>;
@@ -23,18 +23,18 @@ pub trait SheepShed {
     /// It is not allowed to kill an inexistant [Sheep], will return an
     /// [errors::Error::SheepNotPresent] if the user tries to kill
     /// a [Sheep] that is not in the [SheepShed]
-    fn kill_sheep(&mut self, tatoo: &Tatoo) -> Result<Sheep, errors::Error>;
+    fn kill_sheep(&mut self, tattoo: &Tattoo) -> Result<Sheep, errors::Error>;
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct MemorySheepShed(HashMap<Tatoo, Sheep>);
+pub struct MemorySheepShed(HashMap<Tattoo, Sheep>);
 
 impl SheepShed for MemorySheepShed {
     fn add_sheep(&mut self, sheep: Sheep) -> Result<(), errors::Error> {
-        if self.0.contains_key(&sheep.tatoo) {
-            Err(errors::Error::SheepDuplicationError(sheep.tatoo))
+        if self.0.contains_key(&sheep.tattoo) {
+            Err(errors::Error::SheepDuplicationError(sheep.tattoo))
         } else {
-            self.0.insert(sheep.tatoo.clone(), sheep);
+            self.0.insert(sheep.tattoo.clone(), sheep);
             Ok(())
         }
     }
@@ -49,11 +49,11 @@ impl SheepShed for MemorySheepShed {
         Ok(self.0.values().cloned())
     }
 
-    fn kill_sheep(&mut self, tatoo: &Tatoo) -> Result<Sheep, errors::Error> {
-        if self.0.contains_key(tatoo) {
-            Ok(self.0.remove(tatoo).unwrap())
+    fn kill_sheep(&mut self, tattoo: &Tattoo) -> Result<Sheep, errors::Error> {
+        if self.0.contains_key(tattoo) {
+            Ok(self.0.remove(tattoo).unwrap())
         } else {
-            Err(errors::Error::SheepNotPresent(tatoo.to_owned()))
+            Err(errors::Error::SheepNotPresent(tattoo.to_owned()))
         }
     }
 }
@@ -81,16 +81,16 @@ mod tests {
 
 #[cfg(any(feature = "sheepshed_tests", test))]
 pub mod test_templates {
-    use crate::{errors::Error, Sheep, SheepShed, Tatoo, Weight};
+    use crate::{errors::Error, sheep::WeightUnit, Sheep, SheepShed, Tattoo, Weight};
 
     fn prep_base_sheep_shed<T: SheepShed>(mut sheep_shed: T) -> T {
         let sheep1 = Sheep {
-            tatoo: Tatoo(1),
-            weight: Weight::from_kg(100.0),
+            tattoo: Tattoo(1),
+            weight: Weight::from_unit(100.0, WeightUnit::Kilograms),
         };
         let sheep2 = Sheep {
-            tatoo: Tatoo(2),
-            weight: Weight::from_kg(120.0),
+            tattoo: Tattoo(2),
+            weight: Weight::from_unit(120.0, WeightUnit::Kilograms),
         };
         sheep_shed.add_sheep(sheep1).unwrap();
         sheep_shed.add_sheep(sheep2).unwrap();
@@ -100,10 +100,10 @@ pub mod test_templates {
     pub fn cannot_duplicate_sheep<T: SheepShed>(sheep_shed: T) {
         let mut sheep_shed = prep_base_sheep_shed(sheep_shed);
         let sheep3 = Sheep {
-            tatoo: Tatoo(1),
-            weight: Weight::from_kg(120.0),
+            tattoo: Tattoo(1),
+            weight: Weight::from_unit(120.0, WeightUnit::Kilograms),
         };
-        // Sheep3 has the same Tatoo as Sheep1 so it should fail
+        // Sheep3 has the same Tattoo as Sheep1 so it should fail
         assert!(sheep_shed.add_sheep(sheep3).is_err_and(|e| match e {
             Error::SheepDuplicationError(_) => true,
             _ => false,
@@ -113,8 +113,8 @@ pub mod test_templates {
     pub fn sheep_shed_sheep_count<T: SheepShed>(sheep_shed: T) {
         let mut sheep_shed = prep_base_sheep_shed(sheep_shed);
         let sheep3 = Sheep {
-            tatoo: Tatoo(4),
-            weight: Weight::from_kg(120.0),
+            tattoo: Tattoo(4),
+            weight: Weight::from_unit(120.0, WeightUnit::Kilograms),
         };
         assert_eq!(sheep_shed.sheep_count().unwrap(), 2);
         sheep_shed.add_sheep(sheep3).unwrap();
@@ -127,20 +127,20 @@ pub mod test_templates {
             .sheep_iter()
             .unwrap()
             .fold(Weight::ZERO, |acc, sheep| acc + sheep.weight);
-        assert_eq!(weight, Weight::from_kg(220.0));
+        assert_eq!(weight, Weight::from_unit(220.0, WeightUnit::Kilograms));
     }
 
     pub fn cannot_kill_inexistent_sheep<T: SheepShed>(sheep_shed: T) {
         let mut sheep_shed = prep_base_sheep_shed(sheep_shed);
-        // Inexistant tatoo
-        assert!(sheep_shed.kill_sheep(&Tatoo(4)).is_err_and(|e| match e {
+        // Inexistant tattoo
+        assert!(sheep_shed.kill_sheep(&Tattoo(4)).is_err_and(|e| match e {
             Error::SheepNotPresent(_) => true,
             _ => false,
         }));
-        // Existing tatoo
-        assert!(sheep_shed.kill_sheep(&Tatoo(2)).is_ok());
+        // Existing tattoo
+        assert!(sheep_shed.kill_sheep(&Tattoo(2)).is_ok());
         // Not anymore
-        assert!(sheep_shed.kill_sheep(&Tatoo(2)).is_err_and(|e| match e {
+        assert!(sheep_shed.kill_sheep(&Tattoo(2)).is_err_and(|e| match e {
             Error::SheepNotPresent(_) => true,
             _ => false,
         }));

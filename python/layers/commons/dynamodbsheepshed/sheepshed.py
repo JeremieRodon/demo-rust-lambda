@@ -43,7 +43,7 @@ class DynamoDBSheepShed:
                     count += results['Count']
                     if not count_only:
                         items.extend([
-                            Sheep(tatoo=ditem['tatoo'], weight=Weight(ditem['weight']))
+                            Sheep(tattoo=ditem['tattoo'], weight=Weight(ditem['weight']))
                             for ditem in results['Items']
                         ])
                     if exclusive_start_key is None:
@@ -72,20 +72,20 @@ class DynamoDBSheepShed:
         # Errors
         It is not allowed to add a duplicated [Sheep], will raise a
         [SheepDuplicationError] if the user tries to add
-        a [Sheep] with an already known [Tatoo]
+        a [Sheep] with an already known [Tattoo]
         """
         logger.info(f"add_sheep(sheep={sheep})")
         try:
             self.__table.put_item(
                 Item={
-                    'tatoo': sheep.tatoo,
+                    'tattoo': sheep.tattoo,
                     'weight': sheep.weight.as_ug(),
                 },
-                ConditionExpression='attribute_not_exists(tatoo)',
+                ConditionExpression='attribute_not_exists(tattoo)',
                 ReturnValues='NONE'
             )
         except self.__client.exceptions.ConditionalCheckFailedException:
-            raise SheepDuplicationError(sheep.tatoo)
+            raise SheepDuplicationError(sheep.tattoo)
         except Exception as e:
             raise GenericError(str(e))
         logger.info(f"add_sheep => Ok")
@@ -98,7 +98,7 @@ class DynamoDBSheepShed:
         """Return an [Iterator] over all the [Sheep]s in the [SheepShed]"""
         return iter(self._full_table_scan(False)[1])
 
-    def kill_sheep(self, tatoo):
+    def kill_sheep(self, tattoo):
         """
         Kill an unlucky Sheep.
         Remove it from the [SheepShed] and return it's body.
@@ -107,17 +107,17 @@ class DynamoDBSheepShed:
         a [SheepNotPresent] if the user tries to kill a [Sheep] that
         is not in the [SheepShed]
         """
-        logger.info(f"kill_sheep(tatoo={tatoo})")
+        logger.info(f"kill_sheep(tattoo={tattoo})")
         try:
             result = self.__table.delete_item(
-                Key={'tatoo': tatoo},
-                ConditionExpression='attribute_exists(tatoo)',
+                Key={'tattoo': tattoo},
+                ConditionExpression='attribute_exists(tattoo)',
                 ReturnValues='ALL_OLD'
             )
-            sheep = Sheep(tatoo=result['Attributes']['tatoo'], weight=Weight(result['Attributes']['weight']))
+            sheep = Sheep(tattoo=result['Attributes']['tattoo'], weight=Weight(result['Attributes']['weight']))
             logger.info(f"kill_sheep => {sheep}")
             return sheep
         except self.__client.exceptions.ConditionalCheckFailedException:
-            raise SheepNotPresentError(tatoo)
+            raise SheepNotPresentError(tattoo)
         except Exception as e:
             raise GenericError(str(e))

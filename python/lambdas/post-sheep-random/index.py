@@ -13,23 +13,19 @@ def generate_random_weight():
 
 def insert_sheep(event):
     parameters = extract_parameters(event)
-    tatoo = int(parameters['Tatoo'])
+    tattoo = int(parameters['Tattoo'])
 
-    logger.info(f"tatoo={tatoo}")
+    logger.info(f"tattoo={tattoo}")
     
-    sheep = [None]
-    def create_sheep():
-        sheep[0]=Sheep(tatoo, generate_random_weight())
-    logger.info(f"spawning sheep generation...")
-    t_sheep_gen = threading.Thread(target=create_sheep)
-    t_sheep_gen.start()
+    # Here I do not implement a separate generating thread like
+    # in the Rust version because I feel it is too penalizing for
+    # Python, as thread are POSIX thread, quite costly to launch
+    # whereas Rust use green-threads and pre-launched OS threads
+    logger.info("generating sheep")
+    sheep = Sheep(tattoo, generate_random_weight())
 
     logger.info("create a shed instance")
     dynamodb_sheep_shed = DynamoDBSheepShed()
-
-    logger.info("waiting sheep generation...")
-    t_sheep_gen.join()
-    sheep = sheep[0]
 
     logger.info("inserting sheep")
     try:
@@ -40,7 +36,7 @@ def insert_sheep(event):
     logger.info("success")
 
     return basic_response(201, {
-        'tatoo': sheep.tatoo,
+        'tattoo': sheep.tattoo,
         'weight': sheep.weight.as_ug()
     })
 

@@ -56,7 +56,7 @@ def wolf_ocd():
         logger.info(f"wolf will eat {sheep_to_eat}")
         logger.info(f"create a shed instance")
         try:
-            DynamoDBSheepShed().kill_sheep(sheep_to_eat.tatoo)
+            DynamoDBSheepShed().kill_sheep(sheep_to_eat.tattoo)
         except SheepNotPresentError as snpe:
             raise HTTPError(404, str(snpe))
         return basic_response(204)

@@ -4,28 +4,65 @@ use sheep_shed::{Sheep, SheepShed, Weight};
 
 use lambda_apigw_commons::prelude::*;
 
-/// Create a Sieve of Eratostenes containing all primes from 2 to n
+/// Create a Sieve of Eratostenes containing all the primes between 0 and n
 fn sieve_of_eratosthenes(n: u64) -> Vec<u64> {
     assert!(n < usize::MAX as u64);
+    if n < 2 {
+        return vec![];
+    }
     // Boolean array with a value for every number from 0 to n
+    // Initially every number from 0 to n is considered prime
+    // So the array is initialized at "true" for every index
     let mut tmp = vec![true; n as usize + 1];
     // 0 and 1 are not primes
     tmp[0] = false;
     tmp[1] = false;
+    // Compute the square root of n, rounding up
     let sqrt_n = (n as f64).sqrt() as usize + 1;
+    // Cast n to an usize instead of a u64
     let n_usize = n as usize;
+
+    // For every candidate i from 2 to SquareRoot(n) rounded up excluded
     for i in 2..sqrt_n {
+        // If the candidate i is prime
+        // Exemple1: i = 2
+        // Exemple2: i = 3
         if tmp[i] {
+            // Then initialize j = i^2, this optimization work because of maths:
+            // any multiple of our prime "i" that is inferior to i^2 MUST BE
+            // a multiple of a previously processed prime, so already marked false.
+            // When we process multiples of 3, we start at 9, skipping 6,
+            // but 6 is 2*3 and was already taken care of when processing multiples of 2.
+            // Exemple1: j = 4
+            // Exemple2: j = 9
             let mut j = i * i;
+            // As long as j is <= n
             while j <= n_usize {
+                // Mark every j as "not prime"
+                // Exemple1: 4, 6, 8, etc...
+                // Exemple2: 9, 12, 15, 18, etc...
                 tmp[j] = false;
+                // Increment j by i
+                // Exemple1: j += 2
+                // Exemple2: j += 3
                 j += i;
             }
         }
     }
+    // At this point:
+    // tmp[i] = true if i is prime
+    // tmp[i] = false if i is NOT prime
+    // Iterate over tmp to extract our sieve
     tmp.into_iter()
+        // Enumerate provide the index alongside
+        // the corresponding boolean value
         .enumerate()
-        .filter_map(|(i, b)| if b { Some(i as u64) } else { None })
+        // We "filter" to keep only the prime indexes
+        .filter(|(_index, is_prime)| *is_prime)
+        // Indexes are of type usize but we want u64
+        // So we "map" the values
+        .map(|(index, _is_prime)| index as u64)
+        // We collect
         .collect()
 }
 
@@ -37,11 +74,13 @@ async fn wolf_ocd(_req: SimpleRequest<'_>) -> SimpleResult {
     let handle = tokio::runtime::Handle::current();
 
     // The wolf is multi-tasking: he knows retrieving infos on all the sheep
-    // will take time, and computing primes too
+    // will take time, and computing primes too, so he is spawning a thread to
+    // compute the primes.
     let sieve_max = (Weight::MAX.as_ug() as f64).sqrt() as u64;
     log::info!("spawning primes sieve generation (2 to {sieve_max})...");
     let f_sieve = handle.spawn_blocking(move || sieve_of_eratosthenes(sieve_max));
 
+    // Then another thread to retrieve the sheeps
     log::info!("retrieving all the sheeps...");
     let f_sheeps = handle.spawn_blocking(move || {
         log::info!("create a shed instance");
@@ -50,12 +89,14 @@ async fn wolf_ocd(_req: SimpleRequest<'_>) -> SimpleResult {
             .map(|iter| iter.collect::<Vec<_>>())
     });
 
+    // Wait both thread finishes
     let sieve = f_sieve.await.unwrap();
     log::info!("sieve contains {} primes", sieve.len());
 
     let sheeps = f_sheeps.await.unwrap()?;
     log::info!("sheep list contains {} sheep", sheeps.len());
 
+    // Find a suitable sheep
     let sheep_to_eat = sheeps
         .into_iter()
         .filter(|sheep| {
@@ -79,17 +120,19 @@ async fn wolf_ocd(_req: SimpleRequest<'_>) -> SimpleResult {
             }
         });
 
+    // If we found a suitable sheep, eat it and return 204
     if let Some(sheep) = &sheep_to_eat {
-        let sheep_tatoo = sheep.tatoo.clone();
+        let sheep_tattoo = sheep.tattoo.clone();
         log::info!("wolf will eat {sheep}");
         let _ = handle
             .spawn_blocking(move || {
                 log::info!("create a shed instance");
-                DynamoDBSheepShed::new(dynamo()).kill_sheep(&sheep_tatoo)
+                DynamoDBSheepShed::new(dynamo()).kill_sheep(&sheep_tattoo)
             })
             .await
             .unwrap()?;
         simple_response!(204)
+    // Else do nothing and return 404
     } else {
         log::info!("it seems the wolf will continue to starve...");
         simple_response!(404, json!({"message": "No fitting sheep"}))
@@ -125,6 +168,24 @@ mod tests {
     fn is_prime_101() {
         let soe = sieve_of_eratosthenes(101);
         assert_eq!(soe.last().cloned().unwrap(), 101);
+    }
+
+    #[test]
+    fn sieve_0() {
+        let soe = sieve_of_eratosthenes(0);
+        assert_eq!(soe, Vec::<u64>::new());
+    }
+
+    #[test]
+    fn sieve_1() {
+        let soe = sieve_of_eratosthenes(1);
+        assert_eq!(soe, Vec::<u64>::new());
+    }
+
+    #[test]
+    fn sieve_2() {
+        let soe = sieve_of_eratosthenes(2);
+        assert_eq!(soe, vec![2]);
     }
 
     #[test]

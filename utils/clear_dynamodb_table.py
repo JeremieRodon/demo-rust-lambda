@@ -22,7 +22,7 @@ def clear_table(table_name):
     with table.batch_writer() as batch:
         # Scan the table and batch delete
         scan_params = {
-            'ProjectionExpression': 'tatoo',
+            'ProjectionExpression': 'tattoo',
             'ReturnConsumedCapacity': 'NONE',
         }
         lek = None

@@ -62,12 +62,12 @@ Weight.MIN=Weight(80_000_000_000)
 Weight.MAX=Weight(160_000_000_000)
 
 class Sheep:
-    def __init__(self, tatoo, weight):
-        self.tatoo = tatoo
+    def __init__(self, tattoo, weight):
+        self.tattoo = tattoo
         self.weight = weight
     
     def __str__(self):
-        return f"Sheep({self.tatoo}) weighting {self.weight}"
+        return f"Sheep({self.tattoo}) weighting {self.weight}"
     
     def __eq__(self, rhs):
-        return self.tatoo == rhs.tatoo
+        return self.tattoo == rhs.tattoo

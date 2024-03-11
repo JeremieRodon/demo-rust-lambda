@@ -7,7 +7,7 @@ use aws_sdk_dynamodb::{
     Client,
 };
 use serde_dynamo::{aws_sdk_dynamodb_1::from_item, to_attribute_value, to_item};
-use sheep_shed::{Sheep, SheepShed, Tatoo};
+use sheep_shed::{Sheep, SheepShed, Tattoo};
 
 /// A [SheepShed] that rely on a DynamoDB database
 /// # Important note
@@ -159,14 +159,14 @@ impl DynamoDBSheepShed {
             .put_item()
             .table_name(self.table_name.as_str())
             .set_item(Some(to_item(&sheep).expect("cannot fail")))
-            .condition_expression("attribute_not_exists(tatoo)")
+            .condition_expression("attribute_not_exists(tattoo)")
             .send()
             .await
             .map_err(|e| {
                 let pie = e.into_service_error();
                 match pie {
                     PutItemError::ConditionalCheckFailedException(_) => {
-                        sheep_shed::errors::Error::SheepDuplicationError(sheep.tatoo)
+                        sheep_shed::errors::Error::SheepDuplicationError(sheep.tattoo)
                     }
                     _ => {
                         let err_string = format!("{pie} ({:?}: {:?})", pie.code(), pie.message());
@@ -178,14 +178,14 @@ impl DynamoDBSheepShed {
         log::info!("_add_sheep_impl => Ok(())");
         Ok(())
     }
-    async fn _kill_sheep_impl(&self, tatoo: &Tatoo) -> Result<Sheep, sheep_shed::errors::Error> {
-        log::info!("_kill_sheep_impl(tatoo={tatoo})");
+    async fn _kill_sheep_impl(&self, tattoo: &Tattoo) -> Result<Sheep, sheep_shed::errors::Error> {
+        log::info!("_kill_sheep_impl(tattoo={tattoo})");
         let sheep = self
             .client
             .delete_item()
             .table_name(self.table_name.as_str())
-            .key("tatoo", to_attribute_value(tatoo).expect("cannot fail"))
-            .condition_expression("attribute_exists(tatoo)")
+            .key("tattoo", to_attribute_value(tattoo).expect("cannot fail"))
+            .condition_expression("attribute_exists(tattoo)")
             .return_values(ReturnValue::AllOld)
             .send()
             .await
@@ -193,7 +193,7 @@ impl DynamoDBSheepShed {
                 let die = e.into_service_error();
                 match die {
                     DeleteItemError::ConditionalCheckFailedException(_) => {
-                        sheep_shed::errors::Error::SheepNotPresent(tatoo.clone())
+                        sheep_shed::errors::Error::SheepNotPresent(tattoo.clone())
                     }
                     _ => {
                         let err_string = format!("{die} ({:?}: {:?})", die.code(), die.message());
@@ -215,7 +215,7 @@ impl SheepShed for DynamoDBSheepShed {
     /// # Errors
     /// It is not allowed to add a duplicated [Sheep], will return an
     /// [errors::Error::SheepDuplicationError] if the user tries to add
-    /// a [Sheep] with an already known [Tatoo]
+    /// a [Sheep] with an already known [Tattoo]
     /// # Panics
     /// Panics if called outside of a blocking thread ([tokio::task::spawn_blocking]).
     fn add_sheep(&mut self, sheep: Sheep) -> Result<(), sheep_shed::errors::Error> {
@@ -237,9 +237,9 @@ impl SheepShed for DynamoDBSheepShed {
 
     fn kill_sheep(
         &mut self,
-        tatoo: &sheep_shed::Tatoo,
+        tattoo: &sheep_shed::Tattoo,
     ) -> Result<Sheep, sheep_shed::errors::Error> {
-        tokio::runtime::Handle::current().block_on(self._kill_sheep_impl(tatoo))
+        tokio::runtime::Handle::current().block_on(self._kill_sheep_impl(tattoo))
     }
 }
 
@@ -282,7 +282,7 @@ mod tests {
 
     impl TempTable {
         fn new(client: Client, table_name: &str) -> Self {
-            let pkn = "tatoo";
+            let pkn = "tattoo";
             let pkad = AttributeDefinition::builder()
                 .attribute_name(pkn)
                 .attribute_type(ScalarAttributeType::N)

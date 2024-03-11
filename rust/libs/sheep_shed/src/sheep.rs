@@ -2,6 +2,44 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
+/// The various units of [Weight] that we can display
+#[derive(Debug, Clone, Copy)]
+pub enum WeightUnit {
+    Micrograms,
+    Milligrams,
+    Grams,
+    Kilograms,
+}
+impl WeightUnit {
+    fn best_unit(weight: &Weight) -> Self {
+        match weight.0 {
+            w if w > 1_000_000_000 => WeightUnit::Kilograms,
+            w if w > 1_000_000 => WeightUnit::Grams,
+            w if w > 1_000 => WeightUnit::Milligrams,
+            _ => WeightUnit::Micrograms,
+        }
+    }
+
+    fn unit_ratio(&self) -> f64 {
+        match self {
+            WeightUnit::Micrograms => 1.0,
+            WeightUnit::Milligrams => 1_000.0,
+            WeightUnit::Grams => 1_000_000.0,
+            WeightUnit::Kilograms => 1_000_000_000.0,
+        }
+    }
+}
+impl Display for WeightUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WeightUnit::Micrograms => write!(f, "ug"),
+            WeightUnit::Milligrams => write!(f, "mg"),
+            WeightUnit::Grams => write!(f, "g"),
+            WeightUnit::Kilograms => write!(f, "kg"),
+        }
+    }
+}
+
 /// Represent a weight. Internally stored as a [u64] representing micrograms.
 /// This struct provide a [Display] impl that always print the [Weight] with
 /// the correct unit.
@@ -13,19 +51,9 @@ impl Weight {
     pub const MIN: Weight = Weight(80_000_000_000);
     pub const MAX: Weight = Weight(160_000_000_000);
 
-    /// Instantiate a [Weight] from a [f64] in kilograms
-    pub fn from_kg(weight: f64) -> Self {
-        Self((weight * 1_000_000_000f64) as u64)
-    }
-
-    /// Instantiate a [Weight] from a [f64] in grams
-    pub fn from_g(weight: f64) -> Self {
-        Self((weight * 1_000_000f64) as u64)
-    }
-
-    /// Instantiate a [Weight] from a [f64] in milligrams
-    pub fn from_mg(weight: f64) -> Self {
-        Self((weight * 1_000f64) as u64)
+    /// Instantiate a [Weight] from a [f64] in the specified [WeightUnit].
+    pub fn from_unit(weight: f64, wu: WeightUnit) -> Self {
+        Self((weight * wu.unit_ratio()) as u64)
     }
 
     /// Instantiate a [Weight] from a [u64] in micrograms.
@@ -33,18 +61,12 @@ impl Weight {
         Self(weight)
     }
 
-    pub fn as_kg(&self) -> f64 {
-        self.0 as f64 / 1_000_000_000f64
+    /// Return the [Weight] as an [f64] in the specified [WeightUnit].
+    pub fn as_unit(&self, wu: WeightUnit) -> f64 {
+        self.0 as f64 / wu.unit_ratio()
     }
 
-    pub fn as_g(&self) -> f64 {
-        self.0 as f64 / 1_000_000f64
-    }
-
-    pub fn as_mg(&self) -> f64 {
-        self.0 as f64 / 1_000f64
-    }
-
+    /// Return the [Weight] as an [u64] in micrograms.
     pub fn as_ug(&self) -> u64 {
         self.0
     }
@@ -52,15 +74,8 @@ impl Weight {
 
 impl Display for Weight {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 > 1_000_000_000 {
-            write!(f, "{:.3}kg", self.as_kg())
-        } else if self.0 > 1_000_000 {
-            write!(f, "{:.3}g", self.as_g())
-        } else if self.0 > 1_000 {
-            write!(f, "{:.3}mg", self.as_mg())
-        } else {
-            write!(f, "{}ug", self.0)
-        }
+        let best_unit = WeightUnit::best_unit(self);
+        write!(f, "{:.3}{best_unit}", self.as_unit(best_unit))
     }
 }
 impl std::ops::Add for Weight {
@@ -73,8 +88,8 @@ impl std::ops::Add for Weight {
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
-pub struct Tatoo(pub u64);
-impl Display for Tatoo {
+pub struct Tattoo(pub u64);
+impl Display for Tattoo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
@@ -82,26 +97,27 @@ impl Display for Tatoo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sheep {
-    pub tatoo: Tatoo,
+    pub tattoo: Tattoo,
     pub weight: Weight,
 }
 impl Display for Sheep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Sheep({}) weighting {}", self.tatoo, self.weight)
+        write!(f, "Sheep({}) weighting {}", self.tattoo, self.weight)
     }
 }
-/// Sheeps equality is only driven by their [Tatoo]
+/// Sheeps equality is only driven by their [Tattoo] equality
 impl PartialEq for Sheep {
     fn eq(&self, other: &Self) -> bool {
-        self.tatoo == other.tatoo
+        self.tattoo == other.tattoo
     }
 }
 impl Eq for Sheep {}
 
-/// [std::hash::Hash] implementation should be equivalent to [Eq]
+/// [std::hash::Hash] implementation must be equivalent to [Eq]
+/// so we ignore the weight field of the [Sheep]
 impl std::hash::Hash for Sheep {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.tatoo.hash(state);
+        self.tattoo.hash(state);
     }
 }
 
@@ -111,35 +127,50 @@ mod tests {
 
     #[test]
     fn weight_display() {
-        assert_eq!(Weight::from_kg(1.430983).to_string(), "1.431kg");
-        assert_eq!(Weight::from_g(3489.43982).to_string(), "3.489kg");
-        assert_eq!(Weight::from_g(489.43982).to_string(), "489.440g");
-        assert_eq!(Weight::from_mg(432.87).to_string(), "432.870mg");
-        assert_eq!(Weight::from_ug(976).to_string(), "976ug");
-        assert_eq!(Weight::from_mg(0.457).to_string(), "457ug");
+        assert_eq!(
+            Weight::from_unit(1.430983, WeightUnit::Kilograms).to_string(),
+            "1.431kg"
+        );
+        assert_eq!(
+            Weight::from_unit(3489.43982, WeightUnit::Grams).to_string(),
+            "3.489kg"
+        );
+        assert_eq!(
+            Weight::from_unit(489.43982, WeightUnit::Grams).to_string(),
+            "489.440g"
+        );
+        assert_eq!(
+            Weight::from_unit(432.87, WeightUnit::Milligrams).to_string(),
+            "432.870mg"
+        );
+        assert_eq!(Weight::from_ug(976).to_string(), "976.000ug");
+        assert_eq!(
+            Weight::from_unit(0.457, WeightUnit::Milligrams).to_string(),
+            "457.000ug"
+        );
     }
 
     #[test]
-    fn sheeps_equal_equiv_tatoos_equal() {
-        let t1 = Tatoo(1);
-        let t2 = Tatoo(2);
-        let w1 = Weight::from_kg(100.0);
-        let w2 = Weight::from_kg(150.0);
+    fn sheeps_equal_equiv_tattoos_equal() {
+        let t1 = Tattoo(1);
+        let t2 = Tattoo(2);
+        let w1 = Weight::from_unit(100.0, WeightUnit::Kilograms);
+        let w2 = Weight::from_unit(150.0, WeightUnit::Kilograms);
 
         let sheep1 = Sheep {
-            tatoo: t1.clone(),
+            tattoo: t1.clone(),
             weight: w1,
         };
         let sheep2 = Sheep {
-            tatoo: t2.clone(),
+            tattoo: t2.clone(),
             weight: w1,
         };
         let sheep3 = Sheep {
-            tatoo: t1,
+            tattoo: t1,
             weight: w2,
         };
         let sheep4 = Sheep {
-            tatoo: t2,
+            tattoo: t2,
             weight: w2,
         };
         assert_eq!(sheep1, sheep3);

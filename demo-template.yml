@@ -50,10 +50,10 @@ Resources:
       TableName: !Sub ${ProjectName}-${Lang}-backend
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: tatoo
+        - AttributeName: tattoo
           AttributeType: N
       KeySchema:
-        - AttributeName: tatoo
+        - AttributeName: tattoo
           KeyType: HASH
 
 
@@ -172,7 +172,7 @@ Resources:
       RetentionInDays: 90
 
 #######################
-# POST /sheep/{Tatoo} #
+# POST /sheep/{Tattoo} #
 #######################
   PostSheepRandomFunction:
     Type: AWS::Serverless::Function
@@ -184,7 +184,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref SheepShedAPI
-            Path: /sheep/{Tatoo}
+            Path: /sheep/{Tattoo}
             Method: post
       Policies:
         - Version: 2012-10-17
@@ -196,7 +196,7 @@ Resources:
               Condition:
                 ForAllValues:StringEquals:
                   'dynamodb:Attributes':
-                    - tatoo
+                    - tattoo
                     - weight
                 StringEquals:
                   'dynamodb:ReturnValues': NONE
@@ -310,13 +310,13 @@ Resources:
                 uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDogCountFunction.Arn}/invocations
                 passthroughBehavior: when_no_match
               x-amazon-apigateway-request-validator: basic
-          /sheep/{Tatoo}:
+          /sheep/{Tattoo}:
             options:
               tags:
                 - options
               description: Preflight CORS checks for the PATH
               parameters:
-                - $ref: '#/components/parameters/Tatoo'
+                - $ref: '#/components/parameters/Tattoo'
               responses:
                 '200':
                   description: "200 response"
@@ -341,9 +341,9 @@ Resources:
                     responseTemplates:
                       application/json: '{}'
             post:
-              description: Generate a new sheep for the shed with the given Tatoo and a random Weight
+              description: Generate a new sheep for the shed with the given Tattoo and a random Weight
               parameters:
-                - $ref: '#/components/parameters/Tatoo'
+                - $ref: '#/components/parameters/Tattoo'
               responses:
                 '200':
                   $ref: '#/components/responses/Sheep'
@@ -430,10 +430,10 @@ Resources:
               type: object
               description: A sheep
               required:
-                - tatoo
+                - tattoo
                 - weight
               properties:
-                tatoo:
+                tattoo:
                   type: integer
                   format: int64
                   minimum: 0
@@ -457,9 +457,9 @@ Resources:
         #                                   Parameters                                 #
         ################################################################################
           parameters:
-            Tatoo:
-              name: Tatoo
-              description: The tatoo of a sheep
+            Tattoo:
+              name: Tattoo
+              description: The tattoo of a sheep
               in: path
               required: true
               schema:
