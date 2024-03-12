@@ -237,27 +237,27 @@ It will execute a bunch of API calls (~4k/API) and typically takes ~10minutes to
 For reference, here is an execution report with my APIs deployed in the Paris region (as I live there...):
 ```sh
 ./execute_default_benches.sh \
---rust-api https://r97srvphyb.execute-api.eu-west-3.amazonaws.com/v1 \
---python-api https://qr19fdky53.execute-api.eu-west-3.amazonaws.com/v1
+--rust-api https://iv32tbdyt0.execute-api.eu-west-3.amazonaws.com/v1/ \
+--python-api https://92jyb0j7c8.execute-api.eu-west-3.amazonaws.com/v1/
 ```
 It outputs:
 ```
-./invoke_cat.sh https://qr19fdky53.execute-api.eu-west-3.amazonaws.com/v1
-Calls took 59593ms
-./invoke_cat.sh https://r97srvphyb.execute-api.eu-west-3.amazonaws.com/v1
-Calls took 7394ms
-./insert_sheeps.sh https://qr19fdky53.execute-api.eu-west-3.amazonaws.com/v1
-Insertion took 10050ms
-./insert_sheeps.sh https://r97srvphyb.execute-api.eu-west-3.amazonaws.com/v1
-Insertion took 6578ms
-./invoke_dog.sh https://qr19fdky53.execute-api.eu-west-3.amazonaws.com/v1
-Calls took 10791ms
-./invoke_dog.sh https://r97srvphyb.execute-api.eu-west-3.amazonaws.com/v1
-Calls took 7345ms
-./invoke_wolf.sh https://qr19fdky53.execute-api.eu-west-3.amazonaws.com/v1
-Calls took 245703ms
-./invoke_wolf.sh https://r97srvphyb.execute-api.eu-west-3.amazonaws.com/v1
-Calls took 6835ms
+./invoke_cat.sh https://92jyb0j7c8.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 59432ms
+./invoke_cat.sh https://iv32tbdyt0.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 7436ms
+./insert_sheeps.sh https://92jyb0j7c8.execute-api.eu-west-3.amazonaws.com/v1/
+Insertion took 10227ms
+./insert_sheeps.sh https://iv32tbdyt0.execute-api.eu-west-3.amazonaws.com/v1/
+Insertion took 8363ms
+./invoke_dog.sh https://92jyb0j7c8.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 11162ms
+./invoke_dog.sh https://iv32tbdyt0.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 8823ms
+./invoke_wolf.sh https://92jyb0j7c8.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 216667ms
+./invoke_wolf.sh https://iv32tbdyt0.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 15917ms
 Done.
 ```
 
@@ -290,26 +290,38 @@ Go to the CloudWatch Log Insights console, set the date/time range appropriately
 Here is the query:
 ```
 filter @type = "REPORT"
+| fields greatest(@initDuration, 0) + @duration as duration, ispresent(@initDuration) as coldStart
 | parse @log /^\d+:.*?-(?<Lambda>(rust|python)-.+)$/
-| stats avg(@duration) as avgDuration, min(@duration) as minDuration, max(@duration) as maxDuration, stddev(@duration) as StdDevDuration,
+| stats count(*) as count, 
+avg(duration) as avgDuration, min(duration) as minDuration, max(duration) as maxDuration, stddev(duration) as StdDevDuration,
 avg(@billedDuration) as avgBilled, min(@billedDuration) as minBilled, max(@billedDuration) as maxBilled, stddev(@billedDuration) as StdDevBilled,
 avg(@maxMemoryUsed / 1024 / 1024) as avgRam, min(@maxMemoryUsed / 1024 / 1024) as minRam, max(@maxMemoryUsed / 1024 / 1024) as maxRam, stddev(@maxMemoryUsed / 1024 / 1024) as StdDevRam
-by Lambda
+by Lambda, coldStart
 ```
 
-And here are the results yielded by my tests (Duration: ms, Billed: ms, Ram: MB):
+This query gives you the average, min, max and standard deviation for 3 metrics: duration, billed duration and memory used. Result are grouped by lambda function and separated between coldstart and non-coldstart runs.
+
+And here are the results yielded by my tests (Duration: ms, Billed: ms, Ram: MB; StdDev removed for bievety):
 
 ---
-| Lambda |-| avgDuration | minDuration | maxDuration | StdDevDuration |-| avgBilled | minBilled | maxBilled | StdDevBilled |-| avgRam | minRam | maxRam | StdDevRam |
-| --- |-| --- | --- | --- | --- |-| --- | --- | --- | --- |-| --- | --- | --- | --- |
-| rust-delete-wolf-ocd |-| 98.4841 | 42.28 | 252.96 | 42.7561 |-| 103.265 | 43 | 316 | 56.47 |-| 24.2996 | 20.9808 | 28.6102 | 1.3404 |
-| python-delete-wolf-ocd |-| 5192.4109 | 2327.6 | 9604.31 | 1999.5336 |-| 5192.9096 | 2328 | 9605 | 1999.5262 |-| 89.3961 | 78.2013 | 102.9968 | 3.9763 |
-| rust-get-dog-count |-| 21.8582 | 12.24 | 107.07 | 15.031 |-| 25.204 | 13 | 170 | 27.309 |-| 24.1432 | 20.9808 | 28.6102 | 1.9002 |
-| python-get-dog-count |-| 801.4529 | 594.16 | 2317.02 | 450.1134 |-| 801.962 | 595 | 2318 | 450.1113 |-| 76.4656 | 73.4329 | 80.1086 | 1.3878 |
-| rust-post-sheep-random |-| 11.797 | 4.59 | 96.42 | 12.2931 |-| 14.274 | 5 | 158 | 22.6726 |-| 23.3488 | 20.0272 | 25.7492 | 1.3674 |
-| python-post-sheep-random |-| 753.5861 | 527.47 | 2226.41 | 458.3725 |-| 754.077 | 528 | 2227 | 458.3716 |-| 76.2463 | 59.1278 | 81.0623 | 2.1591 |
-| rust-get-cat-ackermann |-| 127.2334 | 67.19 | 785.56 | 24.9678 |-| 129.12 | 92 | 786 | 25.7485 |-| 16.1037 | 14.3051 | 20.9808 | 1.4747 |
-| python-get-cat-ackermann |-| 5768.7616 | 5662.51 | 6071.9 | 34.6346 |-| 5769.25 | 5663 | 6072 | 34.6466 |-| 33.3643 | 31.4713 | 40.0543 | 1.7757 |
+| Lambda |-| coldStart | count |-| avgDuration | minDuration | maxDuration |-| avgBilled | minBilled | maxBilled |-| avgRam | minRam | maxRam |
+| --- |-| --- | --- |-| --- | --- | --- |-| --- | --- | --- |-| --- | --- | --- |
+| rust-delete-wolf-ocd |-| no | 1238 |-| 88.6358 | 32.82 | 215.54 |-| 89.147 | 33 | 216 |-| 27.35 | 21.9345 | 30.5176 |
+| rust-delete-wolf-ocd |-| yes | 70 |-| 317.8614 | 294.94 | 342.62 |-| 318.3429 | 295 | 343 |-| 23.5285 | 21.9345 | 25.7492 |
+| python-delete-wolf-ocd |-| no | 2374 |-| 4788.6655 | 2441.47 | 7526.53 |-| 4789.1592 | 2442 | 7527 |-| 90.7316 | 82.016 | 100.1358 |
+| python-delete-wolf-ocd |-| yes | 105 |-| 9181.7377 | 4396.71 | 9578.59 |-| 8914.0762 | 4135 | 9305 |-| 79.927 | 78.2013 | 84.877 |
+| rust-get-dog-count |-| no | 964 |-| 20.0259 | 12.26 | 64.98 |-| 20.5 | 13 | 65 |-| 25.0696 | 20.9808 | 28.6102 |
+| rust-get-dog-count |-| yes | 36 |-| 146.7453 | 122.48 | 182.16 |-| 147.2778 | 123 | 183 |-| 22.8352 | 20.9808 | 26.7029 |
+| python-get-dog-count |-| no | 900 |-| 643.4647 | 583.33 | 733.75 |-| 643.9767 | 584 | 734 |-| 77.2656 | 74.3866 | 82.016 |
+| python-get-dog-count |-| yes | 100 |-| 2363.8496 | 2286.13 | 2627.62 |-| 2108.63 | 2033 | 2359 |-| 75.3021 | 74.3866 | 78.2013 |
+| rust-post-sheep-random |-| no | 955 |-| 9.5254 | 4.25 | 35.8 |-| 10 | 5 | 36 |-| 23.4085 | 20.9808 | 27.6566 |
+| rust-post-sheep-random |-| yes | 45 |-| 137.026 | 121.4 | 185.69 |-| 137.5111 | 122 | 186 |-| 21.9133 | 20.0272 | 26.7029 |
+| python-post-sheep-random |-| no | 900 |-| 590.7037 | 533.85 | 731.13 |-| 591.2133 | 534 | 732 |-| 76.8269 | 74.3866 | 82.016 |
+| python-post-sheep-random |-| yes | 100 |-| 2369.7038 | 2200.8 | 2522.84 |-| 2099.04 | 1942 | 2261 |-| 75.1877 | 73.4329 | 80.1086 |
+| rust-get-cat-ackermann |-| no | 954 |-| 127.1402 | 91.07 | 456.5 |-| 127.6342 | 92 | 457 |-| 16.3754 | 14.3051 | 20.9808 |
+| rust-get-cat-ackermann |-| yes | 46 |-| 159.0285 | 144.02 | 176.91 |-| 159.5435 | 145 | 177 |-| 15.0929 | 14.3051 | 20.0272 |
+| python-get-cat-ackermann |-| no | 896 |-| 5771.6155 | 5708.25 | 6035.09 |-| 5772.1138 | 5709 | 6036 |-| 33.6607 | 32.4249 | 39.1006 |
+| python-get-cat-ackermann |-| yes | 104 |-| 5855.8304 | 5807.61 | 6195.08 |-| 5776.8269 | 5735 | 6119 |-| 32.755 | 31.4713 | 35.2859 |
 ---
 
 Kind of speaks for itself, right?
