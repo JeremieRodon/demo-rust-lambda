@@ -4,7 +4,7 @@ import threading
 
 from utils import logger
 from apigatewayutils import basic_error, basic_response, HTTPError
-from dynamodbsheepshed import DynamoDBSheepShed, Sheep, Weight
+from dynamodbsheepshed import DynamoDBSheepShed, Sheep, Weight, SheepNotPresentError
 
 
 def sieve_of_eratosthenes(n):
@@ -58,7 +58,7 @@ def wolf_ocd():
         try:
             DynamoDBSheepShed().kill_sheep(sheep_to_eat.tattoo)
         except SheepNotPresentError as snpe:
-            raise HTTPError(404, str(snpe))
+            raise HTTPError(500, str(snpe))
         return basic_response(204)
     else:
         logger.info(f"it seems the wolf will continue to starve...")
