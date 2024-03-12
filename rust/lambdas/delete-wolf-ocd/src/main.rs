@@ -130,7 +130,19 @@ async fn wolf_ocd(_req: SimpleRequest<'_>) -> SimpleResult {
                 DynamoDBSheepShed::new(dynamo()).kill_sheep(&sheep_tattoo)
             })
             .await
-            .unwrap()?;
+            .unwrap()
+            .map_err(|e| {
+                // In this specific case, we consider SheepNotPresent to be a 500
+                if let sheep_shed::errors::Error::SheepNotPresent(_) = e {
+                    SimpleError::Custom {
+                        code: 500,
+                        message: e.to_string(),
+                    }
+                } else {
+                    // Any other error will follow the standard conversion
+                    e.into()
+                }
+            })?;
         simple_response!(204)
     // Else do nothing and return 404
     } else {
