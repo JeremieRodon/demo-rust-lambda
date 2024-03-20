@@ -59,6 +59,12 @@ if [ -z $PYTHON_API_URL ] ; then
     exit 1
 fi
 
+echo "Launching test..."
+echo "######################################"
+echo "# This will take a while and appears #"
+echo "# to hang, but don't worry!          #"
+echo "######################################"
+
 echo ./invoke_cat.sh $PYTHON_API_URL
 ./invoke_cat.sh $PYTHON_API_URL
 

@@ -1,1 +1,3 @@
 /target
+shell.nix
+rust-toolchain

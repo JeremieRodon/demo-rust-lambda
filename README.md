@@ -228,9 +228,9 @@ Removing the CloudFormation stacks correctly will cleanup every resources create
 The `utils` folder of the repository contains scripts to generate traffic on each API. The easiest way is to use `execute_default_benches.sh`:
 ```sh
 cd utils
-./execute_default_benches.sh --rust-url <RUST_API_URL> --python-url <PYTHON_API_URL>
+./execute_default_benches.sh --rust-api <RUST_API_URL> --python-api <PYTHON_API_URL>
 ```
-*You can find the URL of each API (`RUST_API_URL` and `PYTHON_API_URL` in the script above) in the Outputs sections of the respective CloudFormation stacks or directly in the API Gateway console.*
+*You can find the URL of each API (`RUST_API_URL` and `PYTHON_API_URL` in the script above) in the Outputs sections of the respective CloudFormation stacks (stacks of the APIs, not the CICD) or directly in the API Gateway console.*
 
 It will execute a bunch of API calls (~4k/API) and typically takes ~10minutes to run, depending on your internet connection and latence to the APIs.
 
