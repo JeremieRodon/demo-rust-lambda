@@ -1,3 +1,5 @@
 /target
-shell.nix
-rust-toolchain
+/.direnv
+/.envrc
+/flake.nix
+/flake.lock
