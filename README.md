@@ -22,7 +22,6 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 
 
@@ -104,7 +103,7 @@ Ok that's just a demo but the crux of it is:
 then, if a suitable sheep is found, he eats (DeleteItem) it
 - The **Cat** performs a purely algorithmic task with no I/O required.
 
-As a result, we can compare the size of the advantage of Rust over Python in this various situations.
+As a result, we can compare the size of the advantage of Rust over Python in these various situations.
 
 *NB1: The DynamoDB table layout is intentionaly bad: it would be possible to create indexes to drastically accelerate the search of a suitable sheep for the wolf, but that's not the subject of
 this demonstration*
@@ -339,7 +338,11 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Jérémie RODON - [@JeremieRodon](https://twitter.com/JeremieRodon) - jeremie.rodon@gmail.com
+Jérémie RODON - jeremie.rodon@gmail.com
+
+[![X][twitter-x-shield]][twitter-x-url]
+
+[![LinkedIn][linkedin-shield]][linkedin-url]
 
 Project Link: [https://github.com/JeremieRodon/demo-rust-lambda](https://github.com/JeremieRodon/demo-rust-lambda)
 
@@ -357,5 +360,8 @@ Project Link: [https://github.com/JeremieRodon/demo-rust-lambda](https://github.
 [issues-url]: https://github.com/JeremieRodon/demo-rust-lambda/issues
 [license-shield]: https://img.shields.io/github/license/JeremieRodon/demo-rust-lambda.svg?style=for-the-badge
 [license-url]: https://github.com/JeremieRodon/demo-rust-lambda/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/j%C3%A9r%C3%A9mie-rodon-b6656290
+[linkedin-shield]: https://img.shields.io/badge/linkedin-0077B5?style=for-the-badge&logo=linkedin&logoColor=white
+[linkedin-url]: https://linkedin.com/in/JeremieRodon
+[gmail-shield]: https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white
+[twitter-x-shield]: https://img.shields.io/badge/Twitter/X-000000?style=for-the-badge&logo=x&logoColor=white
+[twitter-x-url]: https://twitter.com/JeremieRodon
