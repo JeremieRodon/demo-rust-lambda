@@ -9,12 +9,12 @@ Parameters:
     Type: String
     Description: The language of deployment
     AllowedValues:
-      - 'rust'
-      - 'python'
+      - "rust"
+      - "python"
 
 Conditions:
-  cIsRust: !Equals [ !Ref Lang, "rust" ]
-  cIsPython: !Equals [ !Ref Lang, "python" ]
+  cIsRust: !Equals [!Ref Lang, "rust"]
+  cIsPython: !Equals [!Ref Lang, "python"]
 
 Globals:
   Function:
@@ -22,7 +22,10 @@ Globals:
       - cIsRust
       - provided.al2023
       - python3.12
-    MemorySize: 128
+    MemorySize: !If
+      - cIsRust
+      - 128
+      - 256
     Timeout: 30
     Handler: !If
       - cIsRust
@@ -32,18 +35,18 @@ Globals:
       - arm64
     Layers: !If
       - cIsPython
-      - [ !Ref CommonsLambdaLayer ]
+      - [!Ref CommonsLambdaLayer]
       - !Ref AWS::NoValue
     Environment:
       Variables:
         BACKEND_TABLE_NAME: !Ref BackendTable
-        ALLOW_ORIGIN: '*'
+        ALLOW_ORIGIN: "*"
         RUST_LOG: debug,hyper=info,tracing=info,aws_config=info,aws_smithy_runtime=info,aws_smithy_runtime_api=info,rustls=info
 
 Resources:
-#################
-# Backend table #
-#################
+  #################
+  # Backend table #
+  #################
   BackendTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -56,10 +59,9 @@ Resources:
         - AttributeName: tattoo
           KeyType: HASH
 
-
-##############################
-# Shared Python Lambda Layer #
-##############################
+  ##############################
+  # Shared Python Lambda Layer #
+  ##############################
   CommonsLambdaLayer:
     Type: AWS::Lambda::LayerVersion
     Condition: cIsPython
@@ -70,12 +72,12 @@ Resources:
       Description: Lambda layer containing various utils for interacting with ApiGateway and DynamoDB
       LayerName: !Sub ${ProjectName}-${Lang}-commons
 
-###########
-# Lambdas #
-###########
-####################
-# GET /cat?m=2&n=3 #
-####################
+  ###########
+  # Lambdas #
+  ###########
+  ####################
+  # GET /cat?m=2&n=3 #
+  ####################
   GetCatAckermannFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -94,9 +96,9 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${GetCatAckermannFunction}
       RetentionInDays: 90
 
-############
-# GET /dog #
-############
+  ############
+  # GET /dog #
+  ############
   GetDogCountFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -122,16 +124,16 @@ Resources:
               Resource: !GetAtt BackendTable.Arn
               Condition:
                 StringEquals:
-                  'dynamodb:Select': COUNT
+                  "dynamodb:Select": COUNT
   GetDogCountFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${GetDogCountFunction}
       RetentionInDays: 90
 
-################
-# DELETE /wolf #
-################
+  ################
+  # DELETE /wolf #
+  ################
   DeleteWolfOcdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -157,23 +159,23 @@ Resources:
               Resource: !GetAtt BackendTable.Arn
               Condition:
                 StringEquals:
-                  'dynamodb:Select': ALL_ATTRIBUTES
+                  "dynamodb:Select": ALL_ATTRIBUTES
             - Sid: DevourSheep
               Effect: Allow
               Action: dynamodb:DeleteItem
               Resource: !GetAtt BackendTable.Arn
               Condition:
                 StringEquals:
-                  'dynamodb:ReturnValues': ALL_OLD
+                  "dynamodb:ReturnValues": ALL_OLD
   DeleteWolfOcdFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${DeleteWolfOcdFunction}
       RetentionInDays: 90
 
-#######################
-# POST /sheep/{Tattoo} #
-#######################
+  #######################
+  # POST /sheep/{Tattoo} #
+  #######################
   PostSheepRandomFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -195,20 +197,20 @@ Resources:
               Resource: !GetAtt BackendTable.Arn
               Condition:
                 ForAllValues:StringEquals:
-                  'dynamodb:Attributes':
+                  "dynamodb:Attributes":
                     - tattoo
                     - weight
                 StringEquals:
-                  'dynamodb:ReturnValues': NONE
+                  "dynamodb:ReturnValues": NONE
   PostSheepRandomFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${PostSheepRandomFunction}
       RetentionInDays: 90
 
-#######
-# API #
-#######
+  #######
+  # API #
+  #######
   SheepShedAPI:
     Type: AWS::Serverless::Api
     Properties:
@@ -220,11 +222,11 @@ Resources:
       OpenApiVersion: 3.0.1
       FailOnWarnings: true
       DefinitionBody:
-        openapi: '3.0.1'
+        openapi: "3.0.1"
         info:
           title: Sheep shed API
           description: A sheep shed
-          version: '1'
+          version: "1"
         paths:
           /cat:
             options:
@@ -232,39 +234,39 @@ Resources:
                 - options
               description: Preflight CORS checks for the PATH
               responses:
-                '200':
+                "200":
                   description: "200 response"
                   headers:
                     Access-Control-Allow-Origin:
-                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                      $ref: "#/components/headers/Access-Control-Allow-Origin"
                     Access-Control-Allow-Methods:
-                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                      $ref: "#/components/headers/Access-Control-Allow-Methods"
                     Access-Control-Allow-Headers:
-                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+                      $ref: "#/components/headers/Access-Control-Allow-Headers"
               x-amazon-apigateway-integration:
                 type: mock
                 requestTemplates:
                   application/json: '{"statusCode" : 200}'
                 responses:
                   default:
-                    statusCode: '200'
+                    statusCode: "200"
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                       method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
                       method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
                     responseTemplates:
-                      application/json: '{}'
+                      application/json: "{}"
             get:
               description: >-
                 Ask the cat to compute the Ackermann algorithm for some value of m and n
               parameters:
-                - $ref: '#/components/parameters/AckermannNumberN'
-                - $ref: '#/components/parameters/AckermannNumberM'
+                - $ref: "#/components/parameters/AckermannNumberN"
+                - $ref: "#/components/parameters/AckermannNumberM"
               responses:
-                '200':
-                  $ref: '#/components/responses/AckermannResult'
-                '400':
-                  $ref: '#/components/responses/GenericError'
+                "200":
+                  $ref: "#/components/responses/AckermannResult"
+                "400":
+                  $ref: "#/components/responses/GenericError"
               x-amazon-apigateway-integration:
                 type: aws_proxy
                 httpMethod: POST
@@ -277,33 +279,33 @@ Resources:
                 - options
               description: Preflight CORS checks for the PATH
               responses:
-                '200':
+                "200":
                   description: "200 response"
                   headers:
                     Access-Control-Allow-Origin:
-                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                      $ref: "#/components/headers/Access-Control-Allow-Origin"
                     Access-Control-Allow-Methods:
-                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                      $ref: "#/components/headers/Access-Control-Allow-Methods"
                     Access-Control-Allow-Headers:
-                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+                      $ref: "#/components/headers/Access-Control-Allow-Headers"
               x-amazon-apigateway-integration:
                 type: mock
                 requestTemplates:
                   application/json: '{"statusCode" : 200}'
                 responses:
                   default:
-                    statusCode: '200'
+                    statusCode: "200"
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                       method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
                       method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
                     responseTemplates:
-                      application/json: '{}'
+                      application/json: "{}"
             get:
               description: Ask the dog to count the sheeps in the shed
               responses:
-                '200':
-                  $ref: '#/components/responses/SheepCount'
+                "200":
+                  $ref: "#/components/responses/SheepCount"
               x-amazon-apigateway-integration:
                 type: aws_proxy
                 httpMethod: POST
@@ -316,39 +318,39 @@ Resources:
                 - options
               description: Preflight CORS checks for the PATH
               parameters:
-                - $ref: '#/components/parameters/Tattoo'
+                - $ref: "#/components/parameters/Tattoo"
               responses:
-                '200':
+                "200":
                   description: "200 response"
                   headers:
                     Access-Control-Allow-Origin:
-                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                      $ref: "#/components/headers/Access-Control-Allow-Origin"
                     Access-Control-Allow-Methods:
-                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                      $ref: "#/components/headers/Access-Control-Allow-Methods"
                     Access-Control-Allow-Headers:
-                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+                      $ref: "#/components/headers/Access-Control-Allow-Headers"
               x-amazon-apigateway-integration:
                 type: mock
                 requestTemplates:
                   application/json: '{"statusCode" : 200}'
                 responses:
                   default:
-                    statusCode: '200'
+                    statusCode: "200"
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                       method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
                       method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
                     responseTemplates:
-                      application/json: '{}'
+                      application/json: "{}"
             post:
               description: Generate a new sheep for the shed with the given Tattoo and a random Weight
               parameters:
-                - $ref: '#/components/parameters/Tattoo'
+                - $ref: "#/components/parameters/Tattoo"
               responses:
-                '200':
-                  $ref: '#/components/responses/Sheep'
-                '400':
-                  $ref: '#/components/responses/GenericError'
+                "200":
+                  $ref: "#/components/responses/Sheep"
+                "400":
+                  $ref: "#/components/responses/GenericError"
               x-amazon-apigateway-integration:
                 type: aws_proxy
                 httpMethod: POST
@@ -361,37 +363,37 @@ Resources:
                 - options
               description: Preflight CORS checks for the PATH
               responses:
-                '200':
+                "200":
                   description: "200 response"
                   headers:
                     Access-Control-Allow-Origin:
-                      $ref: '#/components/headers/Access-Control-Allow-Origin'
+                      $ref: "#/components/headers/Access-Control-Allow-Origin"
                     Access-Control-Allow-Methods:
-                      $ref: '#/components/headers/Access-Control-Allow-Methods'
+                      $ref: "#/components/headers/Access-Control-Allow-Methods"
                     Access-Control-Allow-Headers:
-                      $ref: '#/components/headers/Access-Control-Allow-Headers'
+                      $ref: "#/components/headers/Access-Control-Allow-Headers"
               x-amazon-apigateway-integration:
                 type: mock
                 requestTemplates:
                   application/json: '{"statusCode" : 200}'
                 responses:
                   default:
-                    statusCode: '200'
+                    statusCode: "200"
                     responseParameters:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                       method.response.header.Access-Control-Allow-Methods: "'OPTIONS,DELETE'"
                       method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
                     responseTemplates:
-                      application/json: '{}'
+                      application/json: "{}"
             delete:
               description: >-
                 The hungry wolf will eat a sheep from the shed, but only if it finds one
                 with a weight that satisfy its Obsessive-Compulsive Disorder (OCD)
               responses:
-                '204':
-                  $ref: '#/components/responses/Empty'
-                '404':
-                  $ref: '#/components/responses/GenericError'
+                "204":
+                  $ref: "#/components/responses/Empty"
+                "404":
+                  $ref: "#/components/responses/GenericError"
               x-amazon-apigateway-integration:
                 type: aws_proxy
                 httpMethod: POST
@@ -399,9 +401,9 @@ Resources:
                 passthroughBehavior: when_no_match
               x-amazon-apigateway-request-validator: basic
         components:
-        ################################################################################
-        #                                   Headers                                    #
-        ################################################################################
+          ################################################################################
+          #                                   Headers                                    #
+          ################################################################################
           headers:
             Access-Control-Allow-Headers:
               schema:
@@ -412,9 +414,9 @@ Resources:
             Access-Control-Allow-Origin:
               schema:
                 type: string
-        ################################################################################
-        #                                   Schemas                                    #
-        ################################################################################
+          ################################################################################
+          #                                   Schemas                                    #
+          ################################################################################
           schemas:
             ackermannresult:
               type: object
@@ -453,9 +455,9 @@ Resources:
                   type: integer
                   format: int64
                   minimum: 0
-        ################################################################################
-        #                                   Parameters                                 #
-        ################################################################################
+          ################################################################################
+          #                                   Parameters                                 #
+          ################################################################################
           parameters:
             Tattoo:
               name: Tattoo
@@ -466,7 +468,7 @@ Resources:
                 type: string
                 pattern: ^\d{1,20}$
             AckermannNumberN:
-              name: 'n'
+              name: "n"
               description: >-
                 The number 'n' for the Ackermann algorithm. We use the 2-ary function as defined on
                 Wikipedia: https://en.wikipedia.org/wiki/Ackermann_function#TRS,_based_on_2-ary_function
@@ -478,7 +480,7 @@ Resources:
                 minimum: 0
                 maximum: 50000
             AckermannNumberM:
-              name: 'm'
+              name: "m"
               description: >-
                 The number 'm' for the Ackermann algorithm. We use the 2-ary function as defined on
                 Wikipedia: https://en.wikipedia.org/wiki/Ackermann_function#TRS,_based_on_2-ary_function
@@ -489,46 +491,46 @@ Resources:
                 format: int32
                 minimum: 0
                 maximum: 4
-        ################################################################################
-        #                                 Request bodies                               #
-        ################################################################################
+          ################################################################################
+          #                                 Request bodies                               #
+          ################################################################################
           requestBodies: {}
-        ################################################################################
-        #                             Responses objects                                #
-        ################################################################################
+          ################################################################################
+          #                             Responses objects                                #
+          ################################################################################
           responses:
             AckermannResult:
               description: Ackermann algorithm result
               headers:
                 Access-Control-Allow-Origin:
-                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+                  $ref: "#/components/headers/Access-Control-Allow-Origin"
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/ackermannresult'
+                    $ref: "#/components/schemas/ackermannresult"
             Sheep:
               description: A sheep
               headers:
                 Access-Control-Allow-Origin:
-                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+                  $ref: "#/components/headers/Access-Control-Allow-Origin"
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/sheep'
+                    $ref: "#/components/schemas/sheep"
             SheepCount:
               description: The number of sheeps currently in the shed
               headers:
                 Access-Control-Allow-Origin:
-                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+                  $ref: "#/components/headers/Access-Control-Allow-Origin"
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/sheepcount'
+                    $ref: "#/components/schemas/sheepcount"
             GenericError:
               description: The generic error
               headers:
                 Access-Control-Allow-Origin:
-                  $ref: '#/components/headers/Access-Control-Allow-Origin'
+                  $ref: "#/components/headers/Access-Control-Allow-Origin"
               content:
                 application/json:
                   schema:
@@ -544,10 +546,10 @@ Resources:
               description: An empty response
               headers:
                 Access-Control-Allow-Origin:
-                  $ref: '#/components/headers/Access-Control-Allow-Origin'
-        ################################################################################
-        #                                 Security   Definitions                       #
-        ################################################################################
+                  $ref: "#/components/headers/Access-Control-Allow-Origin"
+          ################################################################################
+          #                                 Security   Definitions                       #
+          ################################################################################
           securitySchemes: {}
         ################################################################################
         #                                 Security                                     #
@@ -585,7 +587,7 @@ Resources:
         ################################################################################
         x-amazon-apigateway-documentation:
           version: v1.0
-          createdDate: '2024-03-05T08:28:00Z'
+          createdDate: "2024-03-05T08:28:00Z"
           documentationParts:
             - location:
                 type: API
@@ -594,8 +596,8 @@ Resources:
                   description: Sheep shed API
       StageName: v1
       MethodSettings:
-        - ResourcePath: '/*'
-          HttpMethod: '*'
+        - ResourcePath: "/*"
+          HttpMethod: "*"
           ThrottlingBurstLimit: 100000
           ThrottlingRateLimit: 10000
 
