@@ -12,6 +12,8 @@ phases:
     commands:
       - echo Entered the install phase on `date`
       - |
+        echo Remove rust-toolchain.toml
+        rm rust-toolchain.toml
         echo Installing Rust $RUST_VERSION
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none --profile minimal
         export PATH="/root/.cargo/bin:$PATH"
