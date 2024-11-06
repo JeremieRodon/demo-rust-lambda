@@ -1,5 +1,5 @@
 [package]
-name = "sheep_shed"
+name = "lambda_event_utils"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -8,9 +8,8 @@ authors.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lambda_commons_utils = { path = "../lambda_commons_utils" }
 serde = { workspace = true }
+aws-sdk-eventbridge = { workspace = true}
+serde_type_name = { workspace = true }
 thiserror = { workspace = true }
-lambda_apigw_utils = { path = "../lambda_apigw_utils" }
-
-[features]
-sheepshed_tests = []

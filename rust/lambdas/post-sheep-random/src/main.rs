@@ -1,9 +1,8 @@
-use aws_sdk_dynamodb::Client;
 use dynamodb_sheep_shed::DynamoDBSheepShed;
 use rand::Rng;
 use sheep_shed::{Sheep, SheepShed, Tattoo, Weight};
 
-use lambda_apigw_commons::prelude::*;
+use lambda_apigw_utils::prelude::*;
 
 /// Create a random weight for a Sheep between 80 and 160 kg
 async fn generate_random_weight() -> Weight {
@@ -53,4 +52,4 @@ async fn insert_sheep(req: SimpleRequest<'_>) -> SimpleResult {
     simple_response!(201, response)
 }
 
-lambda_main!(insert_sheep, dynamo(DYNAMO) = Client);
+lambda_main!(async insert_sheep, dynamo = aws_sdk_dynamodb::Client);

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 usage () {
     echo "Usage: $0 [<OPTIONS>] <API_URL> [<sheep_count>]"

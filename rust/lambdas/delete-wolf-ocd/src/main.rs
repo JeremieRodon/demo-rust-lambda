@@ -1,8 +1,7 @@
-use aws_sdk_dynamodb::Client;
 use dynamodb_sheep_shed::DynamoDBSheepShed;
 use sheep_shed::{Sheep, SheepShed, Weight};
 
-use lambda_apigw_commons::prelude::*;
+use lambda_apigw_utils::prelude::*;
 
 /// Create a Sieve of Eratostenes containing all the primes between 0 and n
 fn sieve_of_eratosthenes(n: u64) -> Vec<u64> {
@@ -151,7 +150,7 @@ async fn wolf_ocd(_req: SimpleRequest<'_>) -> SimpleResult {
     }
 }
 
-lambda_main!(wolf_ocd, dynamo(DYNAMO) = Client);
+lambda_main!(async wolf_ocd, dynamo = aws_sdk_dynamodb::Client);
 
 #[cfg(test)]
 mod tests {

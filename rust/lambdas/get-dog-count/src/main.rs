@@ -1,8 +1,7 @@
-use aws_sdk_dynamodb::Client;
 use dynamodb_sheep_shed::DynamoDBSheepShed;
 use sheep_shed::SheepShed;
 
-use lambda_apigw_commons::prelude::*;
+use lambda_apigw_utils::prelude::*;
 
 async fn bark_answer(_req: SimpleRequest<'_>) -> SimpleResult {
     log::info!("create a shed instance");
@@ -18,4 +17,4 @@ async fn bark_answer(_req: SimpleRequest<'_>) -> SimpleResult {
     simple_response!(200, json!({"count": count}))
 }
 
-lambda_main!(bark_answer, dynamo(DYNAMO) = Client);
+lambda_main!(async bark_answer, dynamo = aws_sdk_dynamodb::Client);

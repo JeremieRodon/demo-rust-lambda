@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
-lambda_apigw_commons = { path = "../../libs/lambda_apigw_commons" }
+lambda_apigw_utils = { path = "../../libs/lambda_apigw_utils" }
 dynamodb_sheep_shed = { path = "../../libs/dynamodb_sheep_shed" }
 sheep_shed = { path = "../../libs/sheep_shed" }
 aws-sdk-dynamodb = { workspace = true }

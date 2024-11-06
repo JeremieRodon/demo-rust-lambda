@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 usage () {
     echo "Usage: $0 --rust-api <RUST_API_URL> --python-api <PYTHON_API_URL>"
@@ -60,33 +60,33 @@ if [ -z $PYTHON_API_URL ] ; then
 fi
 
 echo "Launching test..."
-echo "######################################"
-echo "# This will take a while and appears #"
-echo "# to hang, but don't worry!          #"
-echo "######################################"
+echo "###############################################################"
+echo "# This will take a while and appear to hang, but don't worry! #"
+echo "###############################################################"
 
-echo ./invoke_cat.sh $PYTHON_API_URL
+
+echo PYTHON CAT: ./invoke_cat.sh $PYTHON_API_URL
 ./invoke_cat.sh $PYTHON_API_URL
 
-echo ./invoke_cat.sh $RUST_API_URL
+echo RUST CAT: ./invoke_cat.sh $RUST_API_URL
 ./invoke_cat.sh $RUST_API_URL
 
-echo ./insert_sheeps.sh $PYTHON_API_URL
+echo PYTHON SHEEPS: ./insert_sheeps.sh $PYTHON_API_URL
 ./insert_sheeps.sh $PYTHON_API_URL
 
-echo ./insert_sheeps.sh $RUST_API_URL
+echo RUST SHEEPS: ./insert_sheeps.sh $RUST_API_URL
 ./insert_sheeps.sh $RUST_API_URL
 
-echo ./invoke_dog.sh $PYTHON_API_URL
+echo PYTHON DOG: ./invoke_dog.sh $PYTHON_API_URL
 ./invoke_dog.sh $PYTHON_API_URL
 
-echo ./invoke_dog.sh $RUST_API_URL
+echo RUST DOG: ./invoke_dog.sh $RUST_API_URL
 ./invoke_dog.sh $RUST_API_URL
 
-echo ./invoke_wolf.sh $PYTHON_API_URL
+echo PYTHON WOLF: ./invoke_wolf.sh $PYTHON_API_URL
 ./invoke_wolf.sh $PYTHON_API_URL
 
-echo ./invoke_wolf.sh $RUST_API_URL
+echo RUST WOLF: ./invoke_wolf.sh $RUST_API_URL
 ./invoke_wolf.sh $RUST_API_URL
 
 echo Done.

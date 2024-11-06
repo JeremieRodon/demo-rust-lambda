@@ -1,12 +1,10 @@
-use lambda_apigw_commons::prelude::*;
+use lambda_apigw_utils::prelude::*;
 
 fn ackermann_2ary_iter(m: u128, n: u128) -> u128 {
     let mut stack = vec![m, n];
     loop {
-        // First pop => n
-        // Second pop => m
         // match (n, m)
-        match (stack.pop(), stack.pop()) {
+        match (/* Pop n */ stack.pop(), /* Pop m */ stack.pop()) {
             // If the second pop is a None, then the first one
             // was the last element of the stack, we are finished
             (Some(result), None) => return result,
@@ -15,6 +13,7 @@ fn ackermann_2ary_iter(m: u128, n: u128) -> u128 {
             (Some(n), Some(m)) if m == 0 => stack.push(n + 1),
             // If n == 0
             // r2: A(m + 1, 0) => A(m, 1)
+            // r2: A(m, 0) => A(m - 1, 1)
             (Some(n), Some(m)) if n == 0 => {
                 // Push m first
                 stack.push(m - 1);
@@ -23,6 +22,7 @@ fn ackermann_2ary_iter(m: u128, n: u128) -> u128 {
             }
             // Else
             // r3: A(m + 1, n + 1) => A(m, A(m + 1, n))
+            // r3: A(m, n) => A(m - 1, A(m, n - 1))
             (Some(n), Some(m)) => {
                 // Push m - 1
                 stack.push(m - 1);
@@ -49,7 +49,7 @@ async fn run_ackermann(req: SimpleRequest<'_>) -> SimpleResult {
     simple_response!(200, json!({"result": result}))
 }
 
-lambda_main!(run_ackermann);
+lambda_main!(async run_ackermann);
 
 #[cfg(test)]
 mod tests {

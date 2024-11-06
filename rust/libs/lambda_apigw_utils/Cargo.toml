@@ -1,5 +1,5 @@
 [package]
-name = "lambda_apigw_commons"
+name = "lambda_apigw_utils"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -8,14 +8,9 @@ authors.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aws-config = { workspace = true }
+lambda_commons_utils = { path = "../lambda_commons_utils" }
 lambda_http = { workspace = true }
-tokio = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-sheep_shed = { path = "../../libs/sheep_shed" }
 
 [dev-dependencies]
 aws-sdk-dynamodb = { workspace = true }

@@ -1,0 +1,18 @@
+[package]
+name = "lambda_commons_utils"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = { workspace = true }
+env_logger = { workspace = true }
+tokio = { workspace = true}
+serde = { workspace = true }
+serde_json = { workspace = true }
+aws-config = { workspace = true}
+lambda_runtime = { workspace = true}
+aws_lambda_events = { workspace = true}

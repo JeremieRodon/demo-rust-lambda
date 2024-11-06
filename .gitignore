@@ -3,3 +3,4 @@
 /.envrc
 /flake.nix
 /flake.lock
+dynamodb-local-metadata.json
