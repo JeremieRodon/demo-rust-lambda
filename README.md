@@ -242,8 +242,8 @@ For reference, here is an execution report with my APIs deployed in the Paris re
 
 ```sh
 ./execute_default_benches.sh \
---rust-api https://o8ludbv6q9.execute-api.eu-west-3.amazonaws.com/v1/ \
---python-api https://1y1v3voe2i.execute-api.eu-west-3.amazonaws.com/v1/
+--rust-api https://swmafop2bd.execute-api.eu-west-3.amazonaws.com/v1/ \
+--python-api https://pv6wlmzjo0.execute-api.eu-west-3.amazonaws.com/v1/
 ```
 
 It outputs:
@@ -253,22 +253,22 @@ Launching test...
 ###############################################################
 # This will take a while and appear to hang, but don't worry! #
 ###############################################################
-PYTHON CAT: ./invoke_cat.sh https://1y1v3voe2i.execute-api.eu-west-3.amazonaws.com/v1/
-Calls took 45295ms
-RUST CAT: ./invoke_cat.sh https://o8ludbv6q9.execute-api.eu-west-3.amazonaws.com/v1/
-Calls took 20617ms
-PYTHON SHEEPS: ./insert_sheeps.sh https://1y1v3voe2i.execute-api.eu-west-3.amazonaws.com/v1/
-Insertion took 21557ms
-RUST SHEEPS: ./insert_sheeps.sh https://o8ludbv6q9.execute-api.eu-west-3.amazonaws.com/v1/
-Insertion took 21120ms
-PYTHON DOG: ./invoke_dog.sh https://1y1v3voe2i.execute-api.eu-west-3.amazonaws.com/v1/
-Calls took 21817ms
-RUST DOG: ./invoke_dog.sh https://o8ludbv6q9.execute-api.eu-west-3.amazonaws.com/v1/
-Calls took 21136ms
-PYTHON WOLF: ./invoke_wolf.sh https://1y1v3voe2i.execute-api.eu-west-3.amazonaws.com/v1/
-Calls took 23887ms
-RUST WOLF: ./invoke_wolf.sh https://o8ludbv6q9.execute-api.eu-west-3.amazonaws.com/v1/
-Calls took 20909ms
+PYTHON CAT: ./invoke_cat.sh https://pv6wlmzjo0.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 72555ms
+RUST CAT: ./invoke_cat.sh https://swmafop2bd.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 21036ms
+PYTHON SHEEPS: ./insert_sheeps.sh https://pv6wlmzjo0.execute-api.eu-west-3.amazonaws.com/v1/
+Insertion took 23430ms
+RUST SHEEPS: ./insert_sheeps.sh https://swmafop2bd.execute-api.eu-west-3.amazonaws.com/v1/
+Insertion took 23429ms
+PYTHON DOG: ./invoke_dog.sh https://pv6wlmzjo0.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 26990ms
+RUST DOG: ./invoke_dog.sh https://swmafop2bd.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 23385ms
+PYTHON WOLF: ./invoke_wolf.sh https://pv6wlmzjo0.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 194190ms
+RUST WOLF: ./invoke_wolf.sh https://swmafop2bd.execute-api.eu-west-3.amazonaws.com/v1/
+Calls took 27279ms
 Done.
 ```
 
@@ -321,26 +321,26 @@ And here are the results yielded by my tests (Duration: ms, Billed: ms, Ram: MB;
 
 | Lambda |-| coldStart | count |-| avgDuration | minDuration | maxDuration |-| avgBilled | minBilled | maxBilled |-| avgRam | minRam | maxRam |
 | --- |-| --- | --- |-| --- | --- | --- |-| --- | --- | --- |-| --- | --- | --- |
-| rust-delete-wolf-ocd |-| no | 1238 |-| 88.6358 | 32.82 | 215.54 |-| 89.147 | 33 | 216 |-| 27.35 | 21.9345 | 30.5176 |
-| rust-delete-wolf-ocd |-| yes | 70 |-| 317.8614 | 294.94 | 342.62 |-| 318.3429 | 295 | 343 |-| 23.5285 | 21.9345 | 25.7492 |
-| python-delete-wolf-ocd |-| no | 2374 |-| 4788.6655 | 2441.47 | 7526.53 |-| 4789.1592 | 2442 | 7527 |-| 90.7316 | 82.016 | 100.1358 |
-| python-delete-wolf-ocd |-| yes | 105 |-| 9181.7377 | 4396.71 | 9578.59 |-| 8914.0762 | 4135 | 9305 |-| 79.927 | 78.2013 | 84.877 |
-| rust-get-dog-count |-| no | 964 |-| 20.0259 | 12.26 | 64.98 |-| 20.5 | 13 | 65 |-| 25.0696 | 20.9808 | 28.6102 |
-| rust-get-dog-count |-| yes | 36 |-| 146.7453 | 122.48 | 182.16 |-| 147.2778 | 123 | 183 |-| 22.8352 | 20.9808 | 26.7029 |
-| python-get-dog-count |-| no | 900 |-| 643.4647 | 583.33 | 733.75 |-| 643.9767 | 584 | 734 |-| 77.2656 | 74.3866 | 82.016 |
-| python-get-dog-count |-| yes | 100 |-| 2363.8496 | 2286.13 | 2627.62 |-| 2108.63 | 2033 | 2359 |-| 75.3021 | 74.3866 | 78.2013 |
-| rust-post-sheep-random |-| no | 955 |-| 9.5254 | 4.25 | 35.8 |-| 10 | 5 | 36 |-| 23.4085 | 20.9808 | 27.6566 |
-| rust-post-sheep-random |-| yes | 45 |-| 137.026 | 121.4 | 185.69 |-| 137.5111 | 122 | 186 |-| 21.9133 | 20.0272 | 26.7029 |
-| python-post-sheep-random |-| no | 900 |-| 590.7037 | 533.85 | 731.13 |-| 591.2133 | 534 | 732 |-| 76.8269 | 74.3866 | 82.016 |
-| python-post-sheep-random |-| yes | 100 |-| 2369.7038 | 2200.8 | 2522.84 |-| 2099.04 | 1942 | 2261 |-| 75.1877 | 73.4329 | 80.1086 |
-| rust-get-cat-ackermann |-| no | 954 |-| 127.1402 | 91.07 | 456.5 |-| 127.6342 | 92 | 457 |-| 16.3754 | 14.3051 | 20.9808 |
-| rust-get-cat-ackermann |-| yes | 46 |-| 159.0285 | 144.02 | 176.91 |-| 159.5435 | 145 | 177 |-| 15.0929 | 14.3051 | 20.0272 |
-| python-get-cat-ackermann |-| no | 896 |-| 5771.6155 | 5708.25 | 6035.09 |-| 5772.1138 | 5709 | 6036 |-| 33.6607 | 32.4249 | 39.1006 |
-| python-get-cat-ackermann |-| yes | 104 |-| 5855.8304 | 5807.61 | 6195.08 |-| 5776.8269 | 5735 | 6119 |-| 32.755 | 31.4713 | 35.2859 |
+| rust-delete-wolf-ocd |-| no | 1256 |-| 95.1301 | 42.8 | 389.74 |-| 95.6274 | 43 | 390 |-| 25.2633 | 22.8882 | 26.7029 |
+| rust-delete-wolf-ocd |-| yes | 54 |-| 350.7987 | 328.48 | 371.89 |-| 351.2778 | 329 | 372 |-| 21.9698 | 21.9345 | 22.8882 |
+| python-delete-wolf-ocd |-| no | 2289 |-| 4271.3851 | 2243.41 | 7006.29 |-| 4271.8873 | 2244 | 7007 |-| 88.5117 | 83.9233 | 92.5064 |
+| python-delete-wolf-ocd |-| yes | 102 |-| 9261.8528 | 7984.55 | 9601.49 |-| 8976.1667 | 7700 | 9298 |-| 80.8192 | 80.1086 | 81.0623 |
+| rust-get-dog-count |-| no | 988 |-| 17.4312 | 13.05 | 39.5 |-| 17.9362 | 14 | 40 |-| 23.6073 | 21.9345 | 23.8419 |
+| rust-get-dog-count |-| yes | 12 |-| 193.2633 | 182.49 | 218.09 |-| 193.9167 | 183 | 219 |-| 21.5371 | 20.9808 | 21.9345 |
+| python-get-dog-count |-| no | 900 |-| 669.4292 | 603.35 | 845.58 |-| 669.9178 | 604 | 846 |-| 76.8926 | 76.2939 | 78.2013 |
+| python-get-dog-count |-| yes | 100 |-| 3003.9024 | 2796.17 | 3204.47 |-| 2713.36 | 2522 | 2914 |-| 76.2939 | 76.2939 | 76.2939 |
+| rust-post-sheep-random |-| no | 989 |-| 8.1096 | 4.67 | 76.32 |-| 8.5875 | 5 | 77 |-| 22.8351 | 20.9808 | 23.8419 |
+| rust-post-sheep-random |-| yes | 11 |-| 149.8936 | 140.53 | 163.69 |-| 150.3636 | 141 | 164 |-| 21.0675 | 20.9808 | 21.9345 |
+| python-post-sheep-random |-| no | 900 |-| 599.0018 | 549.25 | 693.93 |-| 599.4967 | 550 | 694 |-| 76.7962 | 76.2939 | 78.2013 |
+| python-post-sheep-random |-| yes | 100 |-| 2958.1016 | 2823.31 | 3338.99 |-| 2657.59 | 2544 | 2839 |-| 76.2749 | 75.3403 | 77.2476 |
+| rust-get-cat-ackermann |-| no | 960 |-| 124.1233 | 90.98 | 174.78 |-| 124.6073 | 91 | 175 |-| 15.8966 | 14.3051 | 16.2125 |
+| rust-get-cat-ackermann |-| yes | 40 |-| 150.1008 | 130.29 | 164.68 |-| 150.55 | 131 | 165 |-| 14.3051 | 14.3051 | 14.3051 |
+| python-get-cat-ackermann |-| no | 898 |-| 5935.7388 | 5883.13 | 6093.28 |-| 5936.2327 | 5884 | 6094 |-| 29.9335 | 29.5639 | 30.5176 |
+| python-get-cat-ackermann |-| yes | 102 |-| 6034.4553 | 5985.93 | 6158.94 |-| 5948.3824 | 5906 | 6071 |-| 29.9379 | 29.5639 | 30.5176 |
 
 ---
 
-Kind of speaks for itself, right?
+Kind of speaks for itself, right? Rust is on average **50x faster**. And of course, it also translates to Rust being **50x cheaper**!
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
