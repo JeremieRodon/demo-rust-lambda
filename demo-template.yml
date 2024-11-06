@@ -24,8 +24,8 @@ Globals:
       - python3.12
     MemorySize: !If
       - cIsRust
-      - 256
-      - 256
+      - 128
+      - 128
     Timeout: 30
     Handler: !If
       - cIsRust
