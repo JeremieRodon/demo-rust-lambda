@@ -340,7 +340,9 @@ And here are the results yielded by my tests (Duration: ms, Billed: ms, Ram: MB;
 
 ---
 
-Kind of speaks for itself, right? Rust is on average **50x faster**. And of course, it also translates to Rust being **50x cheaper**!
+Kind of speaks for itself, right? Rust is on average **50x faster**, **33x cheaper** and **4x** more memory efficient!
+
+***NB**: Note that Rust is 50x faster but **only** 33x cheaper because when using Rust (or any custom runtime) on Lambda the Cold Start is billed by AWS, whereas with Python (and other native Lambda runtimes) the Cold Start is generaly not billed (for now)*
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
