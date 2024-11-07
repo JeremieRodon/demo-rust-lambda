@@ -346,6 +346,16 @@ Kind of speaks for itself, right? Rust is on average **50x faster**, **33x cheap
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+### Visualizing the results with GSheets
+
+You can duplicate and use the GSheet document I used to produce the charts of my talk on the subject:
+
+<https://docs.google.com/spreadsheets/d/1F8JGnyyVbkoee2vCYRoXRZlaA4O35NHFVzRBztYR66c/edit?usp=sharing>
+
+If you export the results given by CloudWatch Log Insights as CSV, you can directly paste them in the first Sheet (named `All`). Just **make sure that the `Lambda` and `coldStart` columns are exactly in the same order** as what I had, because the other sheets for the Sheeps, Dogs, etc... are hard-linked to the cells of the first one (there is no "search" going on).
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
 <!-- LICENSE -->
 ## License
 
