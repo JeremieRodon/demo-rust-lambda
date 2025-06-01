@@ -1,7 +1,3 @@
 /target
 /.direnv
-/.envrc
-/flake.nix
-/flake.lock
-/rust-toolchain.toml
 dynamodb-local-metadata.json
